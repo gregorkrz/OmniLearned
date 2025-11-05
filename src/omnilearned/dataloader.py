@@ -59,7 +59,7 @@ def collate_point_cloud(batch, max_part=150):
     return result
 
 
-def get_url(dataset_name, dataset_type, base_url="https://portal.nersc.gov/cfs/m4567/"):
+def get_url(dataset_name, dataset_type, base_url="https://portal.nersc.gov/cfs/dasrepo/omnilearned/"):
     url = f"{base_url}/{dataset_name}/{dataset_type}/"
     try:
         requests.head(url, allow_redirects=True, timeout=5)
