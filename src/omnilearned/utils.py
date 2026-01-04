@@ -18,7 +18,6 @@ def get_model_parameters(model_size):
         model_dict["num_transformers_head"] = 2
         model_dict["num_tokens"] = 4
         model_dict["num_heads"] = 8
-        model_dict["K"] = 10
         model_dict["base_dim"] = 128
         model_dict["mlp_ratio"] = 2
 
@@ -27,7 +26,6 @@ def get_model_parameters(model_size):
         model_dict["num_transformers_head"] = 2
         model_dict["num_tokens"] = 4
         model_dict["num_heads"] = 16
-        model_dict["K"] = 10
         model_dict["base_dim"] = 512
         model_dict["mlp_ratio"] = 2
 
@@ -36,7 +34,6 @@ def get_model_parameters(model_size):
         model_dict["num_transformers_head"] = 4
         model_dict["num_tokens"] = 4
         model_dict["num_heads"] = 32
-        model_dict["K"] = 10
         model_dict["base_dim"] = 1024
         model_dict["mlp_ratio"] = 2
     else:
@@ -210,6 +207,7 @@ def get_class_loss(weight, pred, y, class_cost, use_event_loss=False, logs={}):
 def get_loss(
     outputs,
     y,
+    mode,
     class_cost,
     gen_cost,
     use_event_loss,
@@ -220,28 +218,42 @@ def get_loss(
 ):
     loss = 0.0
     if outputs["y_pred"] is not None:
-        counts = torch.bincount(y, minlength=outputs["y_pred"].shape[-1]).float()
-        class_weights = 1.0 / (counts + 1e-6)
-        weights = class_weights[y]
-        weights = weights / weights.mean()
+        if mode == "regression":
+            loss_class = torch.mean(class_cost(outputs["y_pred"], y))
+            logs["loss_class"] += loss_class.detach()
+        else:
+            counts = torch.bincount(y, minlength=outputs["y_pred"].shape[-1]).float()
+            class_weights = 1.0 / (counts + 1e-6)
+            weights = class_weights[y]
+            weights = weights / weights.mean()
 
-        # weights = torch.ones_like(y).float()
-        loss_class = get_class_loss(
-            weights, outputs["y_pred"], y, class_cost, use_event_loss, logs
-        )
+            loss_class = get_class_loss(
+                weights, outputs["y_pred"], y, class_cost, use_event_loss, logs
+            )
 
         loss = loss + loss_class
 
     if outputs["z_pred"] is not None:
         if data_pid is not None:
-            data_pid = data_pid.reshape((-1))
-            mask = data_pid != -1  # -1 is associated to zero-pdded entries
-            loss_gen = torch.mean(
-                gen_cost(
-                    outputs["z_pred"].reshape((-1, outputs["z_pred"].shape[-1]))[mask],
-                    data_pid[mask],
+            if mode == "segmentation":
+                data_pid = data_pid.reshape((-1, data_pid.shape[-1]))
+                loss_gen = torch.mean(
+                    gen_cost(
+                        outputs["z_pred"].reshape((-1, outputs["z_pred"].shape[-1])),
+                        data_pid,
+                    )
                 )
-            )
+            else:
+                data_pid = data_pid.reshape((-1))
+                mask = data_pid != -1  # -1 is associated to zero-pdded entries
+                loss_gen = torch.mean(
+                    gen_cost(
+                        outputs["z_pred"].reshape((-1, outputs["z_pred"].shape[-1]))[
+                            mask
+                        ],
+                        data_pid[mask],
+                    )
+                )
         else:
             nonzero = (outputs["v"][:, :, 0] != 0).sum(1)
             loss_gen = outputs["v_weight"] * gen_cost(outputs["v"], outputs["z_pred"])
@@ -461,13 +473,16 @@ def get_param_groups(model, wd, lr, lr_factor=1.0, fine_tune=False, freeze=False
     for name, param in model.named_parameters():
         if not param.requires_grad:
             continue
-
         is_new_layer = name.startswith(
             (
                 "classifier.out",
                 "generator",
                 "body.cond",
                 "body.add_embed",
+                "body.local_physics",
+                "body.embed",
+                "body.interaction",
+                # "body.token",
             )
         )
 
@@ -481,9 +496,7 @@ def get_param_groups(model, wd, lr, lr_factor=1.0, fine_tune=False, freeze=False
                 new_layer_decay.append(param)
             else:
                 decay.append(param)
-
     # Base learning rate groups
-
     param_groups = [
         {"params": decay, "weight_decay": wd, "lr": lr},
         {"params": no_decay, "weight_decay": 0.0, "lr": lr},
@@ -509,6 +522,7 @@ def get_param_groups(model, wd, lr, lr_factor=1.0, fine_tune=False, freeze=False
                 or name.startswith("local_physics.")
                 or name.startswith("cond.")
                 or name.startswith("add_embed.")
+                or name.startswith("token")
             ):
                 continue
             else:

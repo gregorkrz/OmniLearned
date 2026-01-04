@@ -48,6 +48,7 @@ def train_step(
     gen_cost,
     optimizer,
     scheduler,
+    mode,
     device,
     clip_loss=CLIPLoss(),
     use_clip=False,
@@ -78,7 +79,6 @@ def train_step(
         optimizer.zero_grad()  # Zero the gradients
 
         X, y = batch["X"].to(device, dtype=torch.float), batch["y"].to(device)
-
         model_kwargs = {
             key: (batch[key].to(device) if batch[key] is not None else None)
             for key in ["cond", "pid", "add_info"]
@@ -98,6 +98,7 @@ def train_step(
             loss = get_loss(
                 outputs,
                 y,
+                mode,
                 class_cost,
                 gen_cost,
                 use_event_loss,
@@ -139,6 +140,7 @@ def val_step(
     dataloader,
     class_cost,
     gen_cost,
+    mode,
     device,
     clip_loss=CLIPLoss(),
     use_clip=False,
@@ -178,6 +180,7 @@ def val_step(
             get_loss(
                 outputs,
                 y,
+                mode,
                 class_cost,
                 gen_cost,
                 use_event_loss,
@@ -201,6 +204,7 @@ def train_model(
     val_loader,
     optimizer,
     lr_scheduler,
+    mode,
     num_epochs=1,
     device="cpu",
     patience=500,
@@ -244,6 +248,7 @@ def train_model(
             loss_gen,
             optimizer,
             lr_scheduler,
+            mode,
             device,
             use_clip=use_clip,
             use_event_loss=use_event_loss,
@@ -258,6 +263,7 @@ def train_model(
             val_loader,
             loss_class,
             loss_gen,
+            mode,
             device,
             use_clip=use_clip,
             use_event_loss=use_event_loss,
@@ -293,18 +299,18 @@ def train_model(
             tracker["bestValLoss"] = losses["val_loss"][-1]
             tracker["bestEpoch"] = epoch
 
-        if is_master_node():
-            print("replacing best checkpoint ...")
-            save_checkpoint(
-                model,
-                ema_model,
-                epoch + 1,
-                optimizer,
-                losses["val_loss"][-1],
-                lr_scheduler,
-                output_dir,
-                checkpoint_name,
-            )
+            if is_master_node():
+                print("replacing best checkpoint ...")
+                save_checkpoint(
+                    model,
+                    ema_model,
+                    epoch + 1,
+                    optimizer,
+                    losses["val_loss"][-1],
+                    lr_scheduler,
+                    output_dir,
+                    checkpoint_name,
+                )
 
         if run is not None:
             for key in train_logs:
@@ -336,6 +342,10 @@ def run(
     num_feat: int = 4,
     model_size: str = "small",
     interaction: bool = False,
+    local_interaction: bool = False,
+    num_coord: int = 2,
+    K: int = 10,
+    interaction_type: str = "lhc",
     conditional: bool = False,
     num_cond: bool = 3,
     use_pid: bool = False,
@@ -361,6 +371,7 @@ def run(
     lr: float = 5e-4,
     lr_factor: float = 10.0,
     wd: float = 0.3,
+    nevts: int = -1,
     attn_drop: float = 0.1,
     mlp_drop: float = 0.1,
     feature_drop: float = 0.0,
@@ -370,11 +381,12 @@ def run(
     local_rank, rank, size = ddp_setup()
 
     model_params = get_model_parameters(model_size)
-
     # set up model
     model = PET2(
         input_dim=num_feat,
         use_int=interaction,
+        local_int=local_interaction,
+        int_type=interaction_type,
         conditional=conditional,
         cond_dim=num_cond,
         pid=use_pid,
@@ -387,6 +399,8 @@ def run(
         mlp_drop=mlp_drop,
         attn_drop=attn_drop,
         feature_drop=feature_drop,
+        num_coord=num_coord,
+        K=K,
         **model_params,
     )
 
@@ -415,7 +429,8 @@ def run(
         rank=rank,
         size=size,
         clip_inputs=clip_inputs,
-        ftag=mode == "ftag",
+        mode=mode,
+        nevts=nevts,
     )
     if rank == 0:
         print("**** Setup ****")
@@ -436,7 +451,7 @@ def run(
         rank=rank,
         size=size,
         clip_inputs=clip_inputs,
-        ftag=mode == "ftag",
+        mode=mode,
     )
 
     param_groups = get_param_groups(
@@ -534,7 +549,7 @@ def run(
 
         run = wandb.init(
             # Set the project where this run will be logged
-            project="OmniLearn",
+            project="OmniBoone",
             name=save_tag,
             mode=mode_wandb,
             # Track hyperparameters and run metadata
@@ -548,18 +563,27 @@ def run(
     else:
         run = None
 
+    if mode == "regression":
+        loss_class = nn.MSELoss(reduction="none")
+    else:
+        loss_class = nn.CrossEntropyLoss(reduction="none")
+
+    if mode == "ftag":
+        loss_gen = nn.CrossEntropyLoss(reduction="none")
+    else:
+        loss_gen = nn.MSELoss(reduction="none")
+
     train_model(
         model,
         train_loader,
         val_loader,
         optimizer,
         lr_scheduler,
+        mode=mode,
         num_epochs=epoch,
         device=device,
-        loss_class=nn.CrossEntropyLoss(reduction="none"),
-        loss_gen=nn.MSELoss(reduction="none")
-        if mode != "ftag"
-        else nn.CrossEntropyLoss(reduction="none"),
+        loss_class=loss_class,
+        loss_gen=loss_gen,
         output_dir=outdir,
         save_tag=save_tag,
         use_clip=use_clip,

@@ -40,9 +40,9 @@ def get_ad_eps(x, mask):
 
 
 def get_ad_eps_hl(x):
-    means = torch.tensor([6.40028, 5.0057, 0.6861], device=x.device)
+    means = torch.tensor([6.40028, 5.0057, 0.4544, 0.6861], device=x.device)
     stds = torch.tensor(
-        [0.16999, 0.318289, 0.193016],
+        [0.16999, 0.318289, 0.139043, 0.193016],
         device=x.device,
     )
 

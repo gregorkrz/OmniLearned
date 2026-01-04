@@ -10,7 +10,7 @@ import numpy as np
 from pathlib import Path
 
 
-def collate_point_cloud(batch, max_part=150):
+def collate_point_cloud(batch, max_part=5000):
     """
     Collate function for point clouds and labels with truncation performed per batch.
 
@@ -38,7 +38,7 @@ def collate_point_cloud(batch, max_part=150):
     # Use validity mask based on feature index 2
     valid_mask = point_clouds[:, :, 2] != 0
     max_particles = min(valid_mask.sum(dim=1).max().item(), max_part)
-    # max_particles = point_clouds.shape[1]
+    max_particles = point_clouds.shape[1]
 
     # Truncate point clouds
     truncated_X = point_clouds[:, :max_particles, :].contiguous()  # (B, M, F)
@@ -59,7 +59,11 @@ def collate_point_cloud(batch, max_part=150):
     return result
 
 
-def get_url(dataset_name, dataset_type, base_url="https://portal.nersc.gov/cfs/dasrepo/omnilearned/"):
+def get_url(
+    dataset_name,
+    dataset_type,
+    base_url="https://portal.nersc.gov/cfs/dasrepo/omnilearned/",
+):
     url = f"{base_url}/{dataset_name}/{dataset_type}/"
     try:
         requests.head(url, allow_redirects=True, timeout=5)
@@ -112,7 +116,8 @@ class HEPDataset(Dataset):
         num_add=4,
         label_shift=0,
         clip_inputs=False,
-        ftag=False,
+        mode="",
+        nevts=-1,
     ):
         """
         Args:
@@ -131,12 +136,15 @@ class HEPDataset(Dataset):
         self._file_cache = {}  # lazy cache for open h5py.File handles
         self.file_indices = file_indices
         self.clip_inputs = clip_inputs
-        self.ftag = ftag
+        self.mode = mode
+        self.nevts = int(nevts)
+        if self.nevts < 0:
+            self.nevts = len(self.file_indices)
 
         # random.shuffle(self.file_indices)  # Shuffle data entries globally
 
     def __len__(self):
-        return len(self.file_indices)
+        return min(self.nevts, len(self.file_indices))
 
     def _get_file(self, file_idx):
         # Get the file handle from cache; open it if it’s not already open.
@@ -163,7 +171,13 @@ class HEPDataset(Dataset):
             sample["X"] = sample["X"] * mask_part.unsqueeze(-1).float()
 
         label = f["pid"][sample_idx]
-        sample["y"] = torch.tensor(label - self.label_shift, dtype=torch.int64)
+
+        if self.mode == "regression":
+            pid_dtype = torch.float32
+        else:
+            pid_dtype = torch.int64
+
+        sample["y"] = torch.tensor(label - self.label_shift, dtype=pid_dtype)
         if "global" in f and self.use_cond:
             sample["cond"] = torch.tensor(f["global"][sample_idx], dtype=torch.float32)
 
@@ -177,9 +191,15 @@ class HEPDataset(Dataset):
             # Assume any additional info appears last
             sample["add_info"] = sample["X"][:, -self.num_add :]
             sample["X"] = sample["X"][:, : -self.num_add]
-        if self.ftag:
+
+        if self.mode in ["segmentation", "ftag"]:
+            if self.mode == "segmentation":
+                data_dtype = torch.float32
+            elif self.mode == "ftag":
+                data_dtype = torch.int64
+
             sample["data_pid"] = torch.tensor(
-                f["data_pid"][sample_idx], dtype=torch.int64
+                f["data_pid"][sample_idx], dtype=data_dtype
             )
 
         return sample
@@ -208,8 +228,9 @@ def load_data(
     rank=0,
     size=1,
     clip_inputs=False,
-    ftag=False,  # special flag for atlas ftag
+    mode="",
     shuffle=True,
+    nevts=-1,
 ):
     supported_datasets = [
         "top",
@@ -225,14 +246,23 @@ def load_data(
         "cms_bsm",
         "cms_top",
         "aspen_bsm",
+        "aspen_bsm_ad_sb",
+        "aspen_bsm_ad_sr",
         "aspen_top_ad_sb",
         "aspen_top_ad_sr",
         "aspen_top_ad_sr_hl",
+        "qcd_dijet",
         "jetnet150",
         "jetnet30",
         "dctr",
         "atlas_flav",
         "custom",
+        "camels",
+        "quijote",
+        "microboone",
+        "aspen_bsm_ad_sb",
+        "aspen_bsm_ad_sr",
+        "aspen_bsm_ad_sr_hl",
     ]
     if dataset_name not in supported_datasets:
         raise ValueError(
@@ -315,7 +345,8 @@ def load_data(
         num_add=num_add,
         label_shift=label_shift.get(dataset_name, 0),
         clip_inputs=clip_inputs,
-        ftag=ftag,
+        mode=mode,
+        nevts=nevts,
     )
 
     loader = DataLoader(

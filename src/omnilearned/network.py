@@ -20,6 +20,8 @@ class PET2(nn.Module):
         self,
         input_dim,
         use_int=True,
+        local_int=True,
+        int_type="lhc",
         conditional=False,
         cond_dim=3,
         pid=False,
@@ -42,10 +44,18 @@ class PET2(nn.Module):
         feature_drop=0.0,
         K=15,
         skip=False,
+        num_coord=3,
     ):
         super().__init__()
         self.mode = mode
-        if self.mode not in ["classifier", "generator", "pretrain", "ftag"]:
+        if self.mode not in [
+            "classifier",
+            "generator",
+            "regression",
+            "segmentation",
+            "ftag",
+            "pretrain",
+        ]:
             raise ValueError(f"Mode '{self.mode}' not supported.")
 
         self.body = PET_body(
@@ -63,6 +73,8 @@ class PET2(nn.Module):
             num_tokens=num_tokens,
             K=K,
             use_int=use_int,
+            local_int=local_int,
+            int_type=int_type,
             conditional=conditional,
             cond_dim=cond_dim,
             pid=pid,
@@ -71,13 +83,17 @@ class PET2(nn.Module):
             add_dim=add_dim,
             use_time=self.mode in ["generator", "pretrain"],
             skip=skip,
+            num_coord=num_coord,
         )
 
         self.num_add = self.body.num_add
         self.num_tokens = num_tokens
         self.classifier = None
         self.generator = None
-        if self.mode == "classifier" or self.mode == "pretrain" or self.mode == "ftag":
+
+        use_classifier = self.mode in ["classifier", "ftag", "regression", "pretrain"]
+        use_generator = self.mode in ["generator", "segmentation", "ftag", "pretrain"]
+        if use_classifier:
             self.classifier = PET_classifier(
                 base_dim,
                 num_transformers=num_transformers_head,
@@ -91,7 +107,7 @@ class PET2(nn.Module):
                 num_classes=num_classes,
             )
 
-        if self.mode == "generator" or self.mode == "pretrain" or self.mode == "ftag":
+        if use_generator:
             self.generator = PET_generator(
                 input_dim
                 if num_gen_classes == 1
@@ -107,7 +123,7 @@ class PET2(nn.Module):
                 num_tokens=num_tokens,
                 num_add=self.num_add,
                 num_classes=num_classes,
-                skip_pid=num_classes == 1,
+                skip_pid=(num_classes == 1) | (self.mode == "segmentation"),
             )
 
         self.initialize_weights()
@@ -139,17 +155,25 @@ class PET2(nn.Module):
         time = torch.rand(size=(x.shape[0],)).to(x.device)
         _, alpha, sigma = get_logsnr_alpha_sigma(time)
 
-        if self.mode == "generator" or self.mode == "pretrain":
+        if self.mode in ["generator", "pretrain"]:
             z, v, v_weight = perturb(x, time)
             z_body = self.body(z, cond, pid, add_info, time)
             z_pred = self.generator(z_body, y)
 
-        if self.mode == "classifier" or self.mode == "pretrain" or self.mode == "ftag":
+        if self.mode in [
+            "classifier",
+            "regression",
+            "segmentation",
+            "pretrain",
+            "ftag",
+        ]:
             x_body = self.body(x, cond, pid, add_info, torch.zeros_like(time))
-            y_pred = self.classifier(x_body)
+
+            if self.mode in ["classifier", "pretrain", "regression", "ftag"]:
+                y_pred = self.classifier(x_body)
             if self.mode == "pretrain":
                 y_perturb = self.classifier(z_body)
-            if self.mode == "ftag":
+            if self.mode == "ftag" or self.mode == "segmentation":
                 z_pred = self.generator(x_body, y)
 
         return {
@@ -237,7 +261,7 @@ class PET_generator(nn.Module):
         num_heads=4,
         mlp_ratio=2,
         norm_layer=DynamicTanh,
-        act_layer=nn.LeakyReLU,
+        act_layer=nn.GELU,
         mlp_drop=0.1,
         attn_drop=0.1,
         num_tokens=4,
@@ -335,8 +359,10 @@ class PET_body(nn.Module):
         attn_drop=0.1,
         feature_drop=0.0,
         num_tokens=4,
-        K=15,
+        K=10,
         use_int=True,
+        local_int=True,
+        int_type="lhc",
         conditional=False,
         cond_dim=3,
         pid=False,
@@ -345,6 +371,7 @@ class PET_body(nn.Module):
         add_dim=4,
         use_time=False,
         skip=False,
+        num_coord=3,
     ):
         super().__init__()
         self.input_dim = input_dim
@@ -354,6 +381,7 @@ class PET_body(nn.Module):
         self.pid = pid
         self.add_info = add_info
         self.skip = skip
+        self.num_coord = num_coord
         self.embed = InputBlock(
             in_features=input_dim,
             hidden_features=int(mlp_ratio * base_dim),
@@ -369,6 +397,7 @@ class PET_body(nn.Module):
                 # mlp_drop=mlp_drop,
                 act_layer=act_layer,
                 norm_layer=norm_layer,
+                int_type=int_type,
             )
 
         self.local_physics = LocalEmbeddingBlock(
@@ -381,7 +410,8 @@ class PET_body(nn.Module):
             norm_layer=norm_layer,
             K=K,
             num_heads=num_heads,
-            physics=use_int,
+            local_int=local_int,
+            int_type=int_type,
             num_transformers=num_transf_local,
         )
 
@@ -515,7 +545,9 @@ class PET_body(nn.Module):
 
         # Move away zero-padded entries
         coord_shift = 999.0 * (~mask).float()
-        local_features, indices = self.local_physics(coord_shift + x[:, :, :2], x, mask)
+        local_features, indices = self.local_physics(
+            coord_shift + x[:, :, : self.num_coord], x, mask
+        )
 
         x_int = None
         if self.use_int:

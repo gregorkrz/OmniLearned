@@ -89,6 +89,53 @@ def get_dr(xi, xj, mask, is_log=True):
         return torch.sqrt(dr2).unsqueeze(-1) * mask
 
 
+def get_d3(xi, xj, mask, is_log=True):
+    dx = xi[:, :, :, 0] - xj[:, :, :, 0]
+    dy = xi[:, :, :, 1] - xj[:, :, :, 1]
+    dz = xi[:, :, :, 2] - xj[:, :, :, 2]
+
+    dr2 = dx.square() + dy.square() + dz.square()
+
+    if is_log:
+        return 0.5 * torch.log(torch.where(dr2 > 0, dr2, 1.0)).unsqueeze(-1) * mask
+    else:
+        return torch.sqrt(dr2).unsqueeze(-1) * mask
+
+
+def get_dot(xi, xj, mask, is_log=True):
+    dx = xi[:, :, :, 0] * xj[:, :, :, 0]
+    dy = xi[:, :, :, 1] * xj[:, :, :, 1]
+    dz = xi[:, :, :, 2] * xj[:, :, :, 2]
+
+    dr2 = dx + dy + dz
+
+    dot = (xi[:, :, :, :3] * xj[:, :, :, :3]).sum(dim=-1)
+    dr2 = 1.0 - dot / (xi[:, :, :, :3].norm(-1) * xj[:, :, :, :3].norm(-1) + 1e-8)
+
+    if is_log:
+        return torch.log(torch.where(dr2 > 0, dr2, 1.0)).unsqueeze(-1) * mask
+    else:
+        return dr2.unsqueeze(-1) * mask
+
+
+def get_dot_diff(xi, xj, mask, is_log=True):
+    dx = xi[:, :, :, 0] * (xi[:, :, :, 0] - xj[:, :, :, 0])
+    dy = xi[:, :, :, 1] * (xi[:, :, :, 1] - xj[:, :, :, 1])
+    dz = xi[:, :, :, 2] * (xi[:, :, :, 2] - xj[:, :, :, 2])
+
+    dr2 = dx + dy + dz
+
+    dot = (xi[:, :, :, :3] * (xi[:, :, :, :3] - xj[:, :, :, :3])).sum(dim=-1)
+    dr2 = 1.0 - dot / (
+        xi[:, :, :, :3].norm(-1) * (xi[:, :, :, :3] - xj[:, :, :, :3]).norm(-1) + 1e-8
+    )
+
+    if is_log:
+        return torch.log(torch.where(dr2 > 0, dr2, 1.0)).unsqueeze(-1) * mask
+    else:
+        return dr2.unsqueeze(-1) * mask
+
+
 def get_kt(xi, xj, mask, is_log=False):
     kt = torch.min(
         torch.stack([torch.exp(xi[:, :, :, 2:3]), torch.exp(xj[:, :, :, 2:3])], -1), -1
@@ -133,8 +180,10 @@ class InteractionBlock(nn.Module):
         act_layer=nn.LeakyReLU,
         mlp_drop=0.0,
         norm_layer=nn.LayerNorm,
+        int_type="lhc",
     ):
         super().__init__()
+        self.int_type = int_type
         self.mlp = MLP(
             in_features=3,
             hidden_features=2 * hidden_features,
@@ -148,14 +197,25 @@ class InteractionBlock(nn.Module):
         xi = x.unsqueeze(2).expand(-1, -1, x.shape[1], -1)
         xj = x.unsqueeze(1).expand(-1, x.shape[1], -1, -1)
         mask_event = (mask.float() @ mask.float().transpose(-1, -2)).unsqueeze(-1)
-        x_int = torch.cat(
-            [
-                get_mass(xi, xj, mask_event, is_log=True),
-                get_dr(xi, xj, mask_event, is_log=True),
-                get_kt(xi, xj, mask_event, is_log=True),
-            ],
-            -1,
-        )
+
+        if self.int_type == "lhc":
+            x_int = torch.cat(
+                [
+                    get_mass(xi, xj, mask_event, is_log=True),
+                    get_dr(xi, xj, mask_event, is_log=True),
+                    get_kt(xi, xj, mask_event, is_log=True),
+                ],
+                -1,
+            )
+        elif self.int_type == "astro":
+            x_int = torch.cat(
+                [
+                    get_d3(xi, xj, mask_event, is_log=True),
+                    get_dot(xi, xj, mask_event, is_log=True),
+                    get_dot_diff(xi, xj, mask_event, is_log=True),
+                ],
+                -1,
+            )
 
         out = self.mlp(x_int)
         # mask again
@@ -180,7 +240,8 @@ class LocalEmbeddingBlock(nn.Module):
         norm_layer=nn.LayerNorm,
         K=10,
         num_heads=4,
-        physics=False,
+        local_int=False,
+        int_type="lhc",
         num_transformers=2,
     ):
         super().__init__()
@@ -188,8 +249,9 @@ class LocalEmbeddingBlock(nn.Module):
         self.num_heads = num_heads
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
-        self.physics = physics
-        k_features = in_features if not self.physics else in_features + 3
+        self.local_int = local_int
+        self.int_type = int_type
+        k_features = in_features if not self.local_int else in_features + 3
 
         self.mlp = MLP(
             in_features=k_features,
@@ -249,18 +311,34 @@ class LocalEmbeddingBlock(nn.Module):
         knn_fts_center = features.unsqueeze(2).expand_as(neighbors)
         local_features = knn_fts_center - neighbors
 
-        if self.physics:
+        if self.local_int:
             # Add the information of the interaction matrix
-            local_features = (
-                torch.cat(
+            if self.int_type == "lhc":
+                x_int = torch.cat(
                     [
-                        local_features,
                         get_mass(
                             knn_fts_center, neighbors, mask_neighbors, is_log=True
                         ),
                         get_dr(knn_fts_center, neighbors, mask_neighbors, is_log=True),
                         get_kt(knn_fts_center, neighbors, mask_neighbors, is_log=True),
                     ],
+                    -1,
+                )
+            elif self.int_type == "astro":
+                x_int = torch.cat(
+                    [
+                        get_d3(knn_fts_center, neighbors, mask_neighbors, is_log=True),
+                        get_dot(knn_fts_center, neighbors, mask_neighbors, is_log=True),
+                        get_dot_diff(
+                            knn_fts_center, neighbors, mask_neighbors, is_log=True
+                        ),
+                    ],
+                    -1,
+                )
+
+            local_features = (
+                torch.cat(
+                    [local_features, x_int],
                     -1,
                 )
                 * mask_neighbors

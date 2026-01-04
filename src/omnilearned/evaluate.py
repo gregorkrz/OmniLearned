@@ -33,7 +33,8 @@ def eval_model(
     rank=0,
 ):
     prediction, cond, labels = test_step(model, test_loader, mode, device)
-    if mode == "classifier":
+
+    if mode in ["classifier", "regression", "segmentation"]:
         if use_event_loss:
             np.savez(
                 os.path.join(outdir, f"outputs_{save_tag}_{dataset}_{rank}.npz"),
@@ -43,9 +44,14 @@ def eval_model(
                 cond=cond.cpu().numpy() if cond is not None else [],
             )
         else:
+            if mode == "classifier":
+                prediction = prediction.softmax(-1).cpu().numpy()
+            else:
+                prediction = prediction.cpu().numpy()
+
             np.savez(
                 os.path.join(outdir, f"outputs_{save_tag}_{dataset}_{rank}.npz"),
-                prediction=prediction.softmax(-1).cpu().numpy(),
+                prediction=prediction,
                 pid=labels.cpu().numpy(),
                 cond=cond.cpu().numpy() if cond is not None else [],
             )
@@ -85,15 +91,23 @@ def test_step(
         }
 
         with torch.no_grad():
-            if mode == "classifier":
+            if mode in ["classifier", "regression", "segmentation"]:
                 outputs = model(X, y, **model_kwargs)
-                preds.append(outputs["y_pred"])
+                output_name = (
+                    "y_pred" if mode in ["classifier", "regression"] else "z_pred"
+                )
+                preds.append(outputs[output_name])
+
             elif mode == "generator":
                 assert "cond" in model_kwargs, (
                     "ERROR, conditioning variables not passed to model"
                 )
                 preds.append(generate(model, y, X.shape, **model_kwargs))
-        labels.append(y)
+        if mode == "segmentation":
+            labels.append(batch["data_pid"].to(device))
+        else:
+            labels.append(y)
+
         conds.append(batch["cond"])
         if mode == "generator":
             if batch["pid"] is not None:
@@ -123,6 +137,10 @@ def run(
     num_feat: int = 4,
     model_size: str = "small",
     interaction: bool = False,
+    local_interaction: bool = False,
+    num_coord: int = 2,
+    K: int = 10,
+    interaction_type: str = "lhc",
     conditional: bool = False,
     num_cond: int = 3,
     use_pid: bool = False,
@@ -131,6 +149,7 @@ def run(
     num_add: int = 4,
     use_event_loss: bool = False,
     num_classes: int = 2,
+    num_gen_classes: int = 1,
     mode: str = "classifier",
     batch: int = 64,
     num_workers: int = 16,
@@ -144,6 +163,8 @@ def run(
     model = PET2(
         input_dim=num_feat,
         use_int=interaction,
+        local_int=local_interaction,
+        int_type=interaction_type,
         conditional=conditional,
         cond_dim=num_cond,
         pid=use_pid,
@@ -151,6 +172,9 @@ def run(
         add_dim=num_add,
         mode=mode,
         num_classes=num_classes,
+        num_gen_classes=num_gen_classes,
+        num_coord=num_coord,
+        K=K,
         **model_params,
     )
 
@@ -179,6 +203,7 @@ def run(
         rank=rank,
         size=size,
         clip_inputs=clip_inputs,
+        mode=mode,
         shuffle=False,
     )
     if rank == 0:

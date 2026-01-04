@@ -20,7 +20,7 @@ from tqdm.auto import tqdm
 
 
 class HLDataset(Dataset):
-    def __init__(self, file_path, file_name="outputs_mass_top.npz"):
+    def __init__(self, file_path, file_name="outputs_mass_bsm.npz"):
         self.file = np.load(os.path.join(file_path, file_name))["cond"]
 
     def __len__(self):
@@ -37,12 +37,13 @@ def eval_model(
     device="cpu",
     rank=0,
     save_tag="",
+    outdir="",
     max_part=100,
 ):
     prediction, cond = test_step(model, test_loader, device)
 
     # Fix distributions
-    prediction[:, 0] = torch.clip(prediction[:, 0], np.log(500), None)
+    prediction[:, 0] = torch.clip(prediction[:, 0], np.log(450), None)
     prediction[:, -1] = torch.clip(
         torch.round(100 * prediction[:, -1]).int(), 1, max_part
     )
@@ -51,7 +52,7 @@ def eval_model(
     prediction = torch.cat((prediction[:, :1], cond[:, None], prediction[:, 1:]), dim=1)
 
     with h5py.File(
-        f"/pscratch/sd/v/vmikuni/Omnilearned/generated_{save_tag}_{dataset}_{rank}.h5",
+        f"/{outdir}/generated_{save_tag}_{dataset}_{rank}.h5",
         "w",
     ) as fh5:
         fh5.create_dataset(
@@ -82,7 +83,7 @@ def test_step(
         # if ib > 100: break
         X = batch.to(device, dtype=torch.float)
         with torch.no_grad():
-            preds.append(generate_hl(model, (X.shape[0], 3), X[:, None]))
+            preds.append(generate_hl(model, (X.shape[0], 4), X[:, None]))
 
         conds.append(batch)
     return (torch.cat(preds).to(device), torch.cat(conds).to(device))
@@ -115,6 +116,7 @@ def restore_checkpoint(
 
 def run(
     indir: str = "",
+    outdir: str = "",
     save_tag: str = "",
     dataset: str = "top",
     path: str = "/pscratch/sd/v/vmikuni/datasets",
@@ -129,7 +131,7 @@ def run(
     # set up model
     model = MLPGEN(
         input_dim=num_feat,
-        hidden_size=256,
+        base_dim=256,
         conditional=conditional,
         cond_dim=num_cond,
     )
@@ -201,6 +203,7 @@ def run(
         device=device,
         rank=rank,
         save_tag=save_tag,
+        outdir=outdir,
     )
     dist.barrier()
     dist.destroy_process_group()

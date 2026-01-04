@@ -35,6 +35,12 @@ def train(
     ),
     size: str = typer.Option("small", "--size", "-s", help="Model size"),
     interaction: bool = typer.Option(False, help="Use interaction matrix"),
+    local_interaction: bool = typer.Option(False, help="Use local interaction matrix"),
+    num_coord: int = typer.Option(
+        2, help="Number of features for distance calculation"
+    ),
+    K: int = typer.Option(10, help="Number of k-neighbors"),
+    interaction_type: str = typer.Option("lhc", help="Type of interaction"),
     conditional: bool = typer.Option(False, help="Use global conditional features"),
     num_cond: int = typer.Option(3, help="Number of global conditioning features"),
     use_pid: bool = typer.Option(False, help="Use particle ID for training"),
@@ -80,6 +86,7 @@ def train(
         1.0, help="Learning rate factor for new layers during fine-tuning"
     ),
     wd: float = typer.Option(0.0, help="Weight decay"),
+    nevts: int = typer.Option(-1, help="Maximum number of events to use"),
     # Model
     attn_drop: float = typer.Option(0.0, help="Dropout for attention layers"),
     mlp_drop: float = typer.Option(0.0, help="Dropout for mlp layers"),
@@ -98,6 +105,10 @@ def train(
         num_feat,
         size,
         interaction,
+        local_interaction,
+        num_coord,
+        K,
+        interaction_type,
         conditional,
         num_cond,
         use_pid,
@@ -123,6 +134,7 @@ def train(
         lr,
         lr_factor,
         wd,
+        nevts,
         attn_drop,
         mlp_drop,
         feature_drop,
@@ -206,6 +218,12 @@ def evaluate(
     ),
     size: str = typer.Option("small", "--size", "-s", help="Model size"),
     interaction: bool = typer.Option(False, help="Use interaction matrix"),
+    local_interaction: bool = typer.Option(False, help="Use local interaction matrix"),
+    num_coord: int = typer.Option(
+        2, help="Number of features for distance calculation"
+    ),
+    K: int = typer.Option(10, help="Number of k-neighbors"),
+    interaction_type: str = typer.Option("lhc", help="Type of interaction"),
     conditional: bool = typer.Option(False, help="Use global conditional features"),
     num_cond: int = typer.Option(3, help="Number of global conditioning features"),
     use_pid: bool = typer.Option(False, help="Use particle ID for training"),
@@ -219,6 +237,9 @@ def evaluate(
     ),
     num_classes: int = typer.Option(
         2, help="Number of classes in the classification task"
+    ),
+    num_gen_classes: int = typer.Option(
+        1, help="Number of classes in the particle segmentation task"
     ),
     mode: str = typer.Option(
         "classifier", help="Task to run: classifier, generator, pretrain"
@@ -239,6 +260,10 @@ def evaluate(
         num_feat,
         size,
         interaction,
+        local_interaction,
+        num_coord,
+        K,
+        interaction_type,
         conditional,
         num_cond,
         use_pid,
@@ -247,6 +272,7 @@ def evaluate(
         num_add,
         use_event_loss,
         num_classes,
+        num_gen_classes,
         mode,
         batch,
         num_workers,
@@ -260,6 +286,7 @@ def evaluate_hl(
     indir: str = typer.Option(
         "", "--input_dir", "-i", help="Directory to input best model"
     ),
+    outdir: str = typer.Option("", "--output_dir", "-o", help="Output saved files"),
     save_tag: str = typer.Option("", help="Extra tag for checkpoint model"),
     dataset: str = typer.Option("top", help="Dataset to load"),
     path: str = typer.Option("/pscratch/sd/v/vmikuni/datasets", help="Dataset path"),
@@ -276,6 +303,7 @@ def evaluate_hl(
 ):
     run_evaluation_hl(
         indir,
+        outdir,
         save_tag,
         dataset,
         path,
