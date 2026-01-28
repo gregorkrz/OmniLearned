@@ -8,6 +8,7 @@ import os
 from urllib.parse import urljoin
 import numpy as np
 from pathlib import Path
+import torch._dynamo
 
 
 def collate_point_cloud(batch, max_part=5000):
@@ -213,6 +214,103 @@ class HEPDataset(Dataset):
                 print(f"Error closing file: {e}")
 
 
+
+class HEPTorchDataset(Dataset):
+    def __init__(
+        self,
+        folder,
+        use_cond=False,
+        pid_idx=4,
+        use_pid=True,
+        use_add=False,
+        num_add=4,
+        mode="",
+        nevts=-1,
+        max_particles=150,
+        classes=None
+    ):
+        """
+        Args:
+            file_paths (list): List of file paths.
+            use_pid (bool): Flag to select if PID information is used during training
+            use_add (bool): Flags to select if additional information besides kinematics are used.
+        """
+        self.use_cond = use_cond
+        self.use_add = use_add
+        self.num_add = num_add
+        self.pid_idx = pid_idx
+        self.use_pid = use_pid
+        self.folder = folder
+        self.file_paths = sorted(list([os.path.join(folder, file) for file in os.listdir(folder) if file.endswith('.pb')]))
+        self.files = [torch.load(file, weights_only=True, mmap=True) for file in self.file_paths]
+        self.files_n_events = np.array([len(file["data"].offsets())-1 for file in self.files]) # -1 because the last offset is the total number of events
+        self.files_n_events_sum= np.cumsum(self.files_n_events)
+        self.files_values = [file["data"].values() for file in self.files]
+        self.files_offsets = [file["data"].offsets() for file in self.files]
+        # truth_labels and global_features are regular tensors, not nested
+        self.files_truth_labels = [file["truth_labels"] for file in self.files]
+        self.files_global_features = [file["global_features"] for file in self.files]
+        self.mode = mode
+        self.nevts = int(nevts)
+        self.max_particles = max_particles
+        self.class_idx = np.array([1, 2, 3, 4, 7, 8]) # 5 classes for the classification task; TODO: make more flexible
+        self.class_idx_map = {j: i for i, j in enumerate(self.class_idx)}
+
+    def __len__(self):
+        if self.nevts > 0:
+            return min(self.nevts, np.sum(self.files_n_events))
+        return np.sum(self.files_n_events)
+
+    def __getitem__(self, idx):
+        file_idx = np.searchsorted(self.files_n_events_sum, idx, side='right')
+        if file_idx > 0:
+            sample_idx = idx - self.files_n_events_sum[file_idx - 1]
+        else:
+            sample_idx = idx
+        
+        data = self.files_values[file_idx][self.files_offsets[file_idx][sample_idx]:self.files_offsets[file_idx][sample_idx+1]]
+        
+        # pad up to max_particles
+        if data.shape[0] < self.max_particles:
+            data = torch.cat([data, torch.zeros(self.max_particles - data.shape[0], data.shape[1])], dim=0)
+        else:
+            data_log_E = data[:, 3]  # log(E) is at index 3 (0:eta, 1:phi, 2:log_pt, 3:log_E, 4:pid)
+            # sort by log(E) and keep only the max_particles
+            data_log_E_idx = torch.argsort(data_log_E, descending=True)
+            data = data[data_log_E_idx[:self.max_particles]]
+        
+        sample = {}
+
+        # Handle labels
+        if self.mode == "classification":
+            label = self.files_truth_labels[file_idx][sample_idx, 1]
+            label_int = int(label.item()) if torch.is_tensor(label) else int(label)
+            sample["y"] = torch.tensor(self.class_idx_map[label_int], dtype=torch.long)
+        elif self.mode == "regression_E_nu":
+            label = self.files_truth_labels[file_idx][sample_idx, 0]
+            sample["y"] = label.clone().detach().float() if torch.is_tensor(label) else torch.tensor(label, dtype=torch.float32)
+        elif self.mode == "regression_E_nu_log":
+            label = self.files_truth_labels[file_idx][sample_idx, 0]
+            label_val = label.item() if torch.is_tensor(label) else label
+            sample["y"] = torch.tensor(np.log10(label_val + 1e-6), dtype=torch.float32)
+        else:
+            # Default: return first truth label
+            label = self.files_truth_labels[file_idx][sample_idx, 0]
+            sample["y"] = label.clone().detach().float() if torch.is_tensor(label) else torch.tensor(label, dtype=torch.float32)
+        
+        if self.use_cond: # Use global features
+            cond = self.files_global_features[file_idx][sample_idx]
+            sample["cond"] = cond.clone().detach().float() if torch.is_tensor(cond) else torch.tensor(cond, dtype=torch.float32)
+        
+        if self.use_pid:
+            sample["pid"] = data[:, self.pid_idx].int()
+            data = torch.cat(
+                (data[:, : self.pid_idx], data[:, self.pid_idx + 1 :]),
+                dim=1,
+            )
+        sample["X"] = data
+        return sample
+
 def load_data(
     dataset_name,
     path,
@@ -263,11 +361,45 @@ def load_data(
         "aspen_bsm_ad_sb",
         "aspen_bsm_ad_sr",
         "aspen_bsm_ad_sr_hl",
+        "minerva_1A"
     ]
     if dataset_name not in supported_datasets:
         raise ValueError(
             f"Dataset '{dataset_name}' not supported. Choose from {supported_datasets}."
         )
+
+    # Special handling for MINERvA dataset with nested tensor format (.pb files)
+    if dataset_name == "minerva_1A":
+        # Path structure: /data/Minerva/20260127_nested_split/1A/{train,val,test}/*.pb
+        dataset_path = Path(path) / "1A" / dataset_type
+        
+        if not dataset_path.exists():
+            raise ValueError(f"MINERvA dataset path does not exist: {dataset_path}")
+        
+        print(f"Loading MINERvA dataset from {dataset_path}")
+        
+        data = HEPTorchDataset(
+            folder=str(dataset_path),
+            use_cond=use_cond,
+            use_pid=use_pid,
+            pid_idx=pid_idx,
+            use_add=use_add,
+            num_add=num_add,
+            mode=mode,
+            nevts=nevts,
+        )
+        
+        loader = DataLoader(
+            data,
+            batch_size=batch,
+            pin_memory=torch.cuda.is_available(),
+            shuffle=shuffle,
+            sampler=None,
+            num_workers=num_workers,
+            drop_last=False,
+            collate_fn=collate_point_cloud,
+        )
+        return loader
 
     if dataset_name == "pretrain":
         names = ["atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"]
