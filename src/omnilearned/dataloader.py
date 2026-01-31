@@ -119,14 +119,17 @@ class HEPDataset(Dataset):
         clip_inputs=False,
         mode="",
         nevts=-1,
+        regress_log=False,
     ):
         """
         Args:
             file_paths (list): List of file paths.
             use_pid (bool): Flag to select if PID information is used during training
             use_add (bool): Flags to select if additional information besides kinematics are used
+            regress_log (bool): Apply log transformation to regression targets
         """
         self.use_cond = use_cond
+        self.regress_log = regress_log
         self.use_pid = use_pid
         self.use_add = use_add
         self.pid_idx = pid_idx
@@ -178,7 +181,11 @@ class HEPDataset(Dataset):
         else:
             pid_dtype = torch.int64
 
-        sample["y"] = torch.tensor(label - self.label_shift, dtype=pid_dtype)
+        label_value = label - self.label_shift
+        if self.mode == "regression" and self.regress_log:
+            label_value = np.log(label_value + 1e-8)  # Add small epsilon to avoid log(0)
+        
+        sample["y"] = torch.tensor(label_value, dtype=pid_dtype)
         if "global" in f and self.use_cond:
             sample["cond"] = torch.tensor(f["global"][sample_idx], dtype=torch.float32)
 
@@ -227,13 +234,15 @@ class HEPTorchDataset(Dataset):
         mode="",
         nevts=-1,
         max_particles=150,
-        classes=None
+        classes=None,
+        regress_log=False,
     ):
         """
         Args:
             file_paths (list): List of file paths.
             use_pid (bool): Flag to select if PID information is used during training
             use_add (bool): Flags to select if additional information besides kinematics are used.
+            regress_log (bool): Apply log transformation to regression targets
         """
         self.use_cond = use_cond
         self.use_add = use_add
@@ -241,10 +250,11 @@ class HEPTorchDataset(Dataset):
         self.pid_idx = pid_idx
         self.use_pid = use_pid
         self.folder = folder
+        self.regress_log = regress_log
         self.file_paths = sorted(list([os.path.join(folder, file) for file in os.listdir(folder) if file.endswith('.pb')]))
         self.files = [torch.load(file, weights_only=True, mmap=True) for file in self.file_paths]
         self.files_n_events = np.array([len(file["data"].offsets())-1 for file in self.files]) # -1 because the last offset is the total number of events
-        self.files_n_events_sum= np.cumsum(self.files_n_events)
+        self.files_n_events_sum = np.cumsum(self.files_n_events)
         self.files_values = [file["data"].values() for file in self.files]
         self.files_offsets = [file["data"].offsets() for file in self.files]
         # truth_labels and global_features are regular tensors, not nested
@@ -259,6 +269,7 @@ class HEPTorchDataset(Dataset):
     def __len__(self):
         if self.nevts > 0:
             return min(self.nevts, np.sum(self.files_n_events))
+        print("Number of events per file", self.files_n_events)
         return np.sum(self.files_n_events)
 
     def __getitem__(self, idx):
@@ -286,13 +297,12 @@ class HEPTorchDataset(Dataset):
             label = self.files_truth_labels[file_idx][sample_idx, 1]
             label_int = int(label.item()) if torch.is_tensor(label) else int(label)
             sample["y"] = torch.tensor(self.class_idx_map[label_int], dtype=torch.long)
-        elif self.mode == "regression_E_nu":
-            label = self.files_truth_labels[file_idx][sample_idx, 0]
-            sample["y"] = label.clone().detach().float() if torch.is_tensor(label) else torch.tensor(label, dtype=torch.float32)
-        elif self.mode == "regression_E_nu_log":
-            label = self.files_truth_labels[file_idx][sample_idx, 0]
+        elif self.mode == "regression":
+            label = self.files_truth_labels[file_idx][sample_idx, 0] / 1000.0
             label_val = label.item() if torch.is_tensor(label) else label
-            sample["y"] = torch.tensor(np.log10(label_val + 1e-6), dtype=torch.float32)
+            #if self.regress_log:
+            #    label_val = np.log(label_val + 1e-8)  # Add small epsilon to avoid log(0)
+            sample["y"] = torch.tensor(label_val, dtype=torch.float32)
         else:
             # Default: return first truth label
             label = self.files_truth_labels[file_idx][sample_idx, 0]
@@ -329,6 +339,7 @@ def load_data(
     mode="",
     shuffle=True,
     nevts=-1,
+    regress_log=False,
 ):
     supported_datasets = [
         "top",
@@ -360,24 +371,21 @@ def load_data(
         "microboone",
         "aspen_bsm_ad_sb",
         "aspen_bsm_ad_sr",
-        "aspen_bsm_ad_sr_hl",
-        "minerva_1A"
+        "aspen_bsm_ad_sr_hl"
     ]
+    supported_MINERVA_datasets = "minerva_1A", "minerva_1B", "minerva_1C", "minerva_1D", "minerva_1E", "minerva_1F", "minerva_1G", "minerva_1L", "minerva_1M", "minerva_1N", "minerva_1O", "minerva_1P"
+    supported_datasets.extend(supported_MINERVA_datasets)
     if dataset_name not in supported_datasets:
         raise ValueError(
             f"Dataset '{dataset_name}' not supported. Choose from {supported_datasets}."
         )
 
     # Special handling for MINERvA dataset with nested tensor format (.pb files)
-    if dataset_name == "minerva_1A":
-        # Path structure: /data/Minerva/20260127_nested_split/1A/{train,val,test}/*.pb
-        dataset_path = Path(path) / "1A" / dataset_type
-        
-        if not dataset_path.exists():
-            raise ValueError(f"MINERvA dataset path does not exist: {dataset_path}")
-        
-        print(f"Loading MINERvA dataset from {dataset_path}")
-        
+    if dataset_name in supported_MINERVA_datasets:
+        # playlist is 1A etc.
+        dataset_playlist = dataset_name.split("_")[1]
+        dataset_path = Path(path) / dataset_playlist / dataset_type
+    
         data = HEPTorchDataset(
             folder=str(dataset_path),
             use_cond=use_cond,
@@ -387,6 +395,7 @@ def load_data(
             num_add=num_add,
             mode=mode,
             nevts=nevts,
+            regress_log=regress_log,
         )
         
         loader = DataLoader(
@@ -479,6 +488,7 @@ def load_data(
         clip_inputs=clip_inputs,
         mode=mode,
         nevts=nevts,
+        regress_log=regress_log,
     )
 
     loader = DataLoader(

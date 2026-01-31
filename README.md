@@ -20,13 +20,22 @@ This repository contains the software package necessary to reproduce all the res
 
 
 ## Table of Contents
-- [Installation](#installation)
-- [Data](#data)
-- [Training](#training)
-- [Evaluation](#evaluation)
-- [Using the Pre-trained checkpoint](#using-the-pre-trained-checkpoint)
-- [Train your Own Model](#creating-your-own-dataset)
-- [Special Use Cases](#special-use-cases)
+- [OmniLearned Official Repository](#omnilearned-official-repository)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Data](#data)
+  - [Training:](#training)
+    - [Get the data](#get-the-data)
+    - [Start the training using the small model](#start-the-training-using-the-small-model)
+  - [Evaluation](#evaluation)
+  - [Using the Pre-trained checkpoint](#using-the-pre-trained-checkpoint)
+  - [Creating Your Own Dataset](#creating-your-own-dataset)
+    - [Dataset Contents](#dataset-contents)
+  - [Special Use Cases](#special-use-cases)
+    - [Anomaly Detection](#anomaly-detection)
+    - [Flavour Tagging](#flavour-tagging)
+  - [Contributing](#contributing)
+    - [Linting](#linting)
 
 
 ## Installation
@@ -379,8 +388,6 @@ omnilearned train  -o /YOUR/CHECKPOINT/FOLDER --save-tag atlas_flav --dataset at
 ```
 
 By using ```--mode ftag``` all changes needed will be handle internally in OmniLearned.
-
-### 
 
 ## Contributing
 

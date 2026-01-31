@@ -67,6 +67,12 @@ def train(
     mode: str = typer.Option(
         "classifier", help="Task to run: classifier, generator, pretrain"
     ),
+    regression_loss: str = typer.Option(
+        "mse", help="Regression loss type: mse (L2), l1 (MAE), or huber"
+    ),
+    regress_log: bool = typer.Option(
+        False, help="Apply log transformation to targets for regression"
+    ),
     # Training options
     batch: int = typer.Option(64, help="Batch size"),
     iterations: int = typer.Option(-1, help="Number of iterations per pass"),
@@ -140,6 +146,8 @@ def train(
         feature_drop,
         num_workers,
         clip_inputs=clip_inputs,
+        regression_loss=regression_loss,
+        regress_log=regress_log,
     )
 
 

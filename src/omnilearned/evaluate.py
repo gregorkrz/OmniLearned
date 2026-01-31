@@ -32,6 +32,10 @@ def eval_model(
     save_tag="pretrain",
     rank=0,
 ):
+    # Ensure output directory exists
+    if outdir and rank == 0:
+        os.makedirs(outdir, exist_ok=True)
+    
     prediction, cond, labels = test_step(model, test_loader, mode, device)
 
     if mode in ["classifier", "regression", "segmentation"]:
@@ -156,6 +160,12 @@ def run(
     clip_inputs: bool = False,
 ):
     local_rank, rank, size = ddp_setup()
+
+    # For regression, we need num_classes=1 (single output value)
+    if mode == "regression" and num_classes != 1:
+        if rank == 0:
+            print(f"Warning: Setting num_classes=1 for regression mode (was {num_classes})")
+        num_classes = 1
 
     model_params = get_model_parameters(model_size)
 

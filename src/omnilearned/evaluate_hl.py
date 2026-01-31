@@ -40,6 +40,10 @@ def eval_model(
     outdir="",
     max_part=100,
 ):
+    # Ensure output directory exists
+    if outdir and rank == 0:
+        os.makedirs(outdir, exist_ok=True)
+    
     prediction, cond = test_step(model, test_loader, device)
 
     # Fix distributions

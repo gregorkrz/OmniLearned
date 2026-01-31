@@ -14,6 +14,7 @@ from omnilearned.utils import (
     ddp_setup,
     get_param_groups,
     CLIPLoss,
+    RegressionLoss,
     get_checkpoint_name,
     shadow_copy,
     get_loss,
@@ -67,6 +68,10 @@ def train_step(
         iterations_per_epoch = len(dataloader)
 
     data_iter = iter(dataloader)
+    
+    # Progress logging settings
+    log_interval = 1000  # Log every 1000 steps
+    running_loss = 0.0
 
     for batch_idx in range(iterations_per_epoch):
         try:
@@ -126,6 +131,17 @@ def train_step(
                     ema_model.parameters(), model.module.parameters()
                 ):
                     ema_p.mul_(ema_decay).add_(model_p, alpha=1.0 - ema_decay)
+        
+        # Progress logging
+        running_loss += loss.item()
+        if is_master_node() and (batch_idx + 1) % log_interval == 0:
+            avg_loss = running_loss / log_interval
+            progress = (batch_idx + 1) / iterations_per_epoch * 100
+            print(
+                f"  [{batch_idx + 1}/{iterations_per_epoch}] ({progress:.1f}%) - "
+                f"Loss: {avg_loss:.4f}, LR: {scheduler.get_last_lr()[0]:.2e}"
+            )
+            running_loss = 0.0
 
     if dist.is_initialized():
         for key in logs:
@@ -153,6 +169,9 @@ def val_step(
 
     if iterations_per_epoch < 0:
         iterations_per_epoch = len(dataloader)
+
+    # Progress logging settings
+    log_interval = 1000  # Log every 1000 steps during validation
 
     data_iter = iter(dataloader)
     for batch_idx in range(iterations_per_epoch):
@@ -189,6 +208,11 @@ def val_step(
                 logs,
                 data_pid=data_pid,
             )
+        
+        # Progress logging for validation
+        if is_master_node() and (batch_idx + 1) % log_interval == 0:
+            progress = (batch_idx + 1) / iterations_per_epoch * 100
+            print(f"  Validation: [{batch_idx + 1}/{iterations_per_epoch}] ({progress:.1f}%)")
 
     if dist.is_initialized():
         for key in logs:
@@ -240,6 +264,9 @@ def train_model(
         ):
             train_loader.sampler.set_epoch(epoch)
 
+        if is_master_node():
+            print(f"\nEpoch {epoch + 1}/{num_epochs} - Training:")
+        
         start = time.time()
         train_logs = train_step(
             model,
@@ -377,8 +404,16 @@ def run(
     feature_drop: float = 0.0,
     num_workers: int = 16,
     clip_inputs: bool = False,
+    regression_loss: str = "mse",
+    regress_log: bool = False,
 ):
     local_rank, rank, size = ddp_setup()
+    # Save all these settings to a json file into the output directory
+    # For regression, we need num_classes=1 (single output value)
+    if mode == "regression" and num_classes != 1:
+        if rank == 0:
+            print(f"Warning: Setting num_classes=1 for regression mode (was {num_classes})")
+        num_classes = 1
 
     model_params = get_model_parameters(model_size)
     # set up model
@@ -540,7 +575,6 @@ def run(
 
     if wandb:
         import wandb
-
         if is_master_node():
             mode_wandb = None
             wandb.login()
@@ -549,7 +583,7 @@ def run(
 
         run = wandb.init(
             # Set the project where this run will be logged
-            project="OmniBoone",
+            project="omnithings",
             name=save_tag,
             mode=mode_wandb,
             # Track hyperparameters and run metadata
@@ -564,7 +598,14 @@ def run(
         run = None
 
     if mode == "regression":
-        loss_class = nn.MSELoss(reduction="none")
+        # Use custom RegressionLoss that handles loss type and log transformation
+        # Note: apply_log=False because dataloader already applies log transformation when regress_log=True
+        loss_class = RegressionLoss(
+            loss_type=regression_loss,
+            apply_log=regress_log,  # Log transformation handled by dataloader
+            log_epsilon=1e-6,
+            reduction="none"
+        )
     else:
         loss_class = nn.CrossEntropyLoss(reduction="none")
 

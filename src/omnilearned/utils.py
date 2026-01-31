@@ -129,6 +129,81 @@ class CLIPLoss(nn.Module):
         return {"contrastive_loss": total_loss} if output_dict else total_loss
 
 
+class RegressionLoss(nn.Module):
+    """
+    Custom regression loss that supports multiple loss types and optional log transformation.
+    
+    This loss function can be used in two modes:
+    1. Direct regression: Compares predictions and targets directly
+    2. Log-space regression: Transforms both predictions and targets to log space before comparison
+    
+    Args:
+        loss_type (str): Type of loss - 'mse' (L2), 'l1' (MAE), or 'huber'
+        apply_log (bool): Whether to apply log transformation to both predictions and targets.
+                         If True, assumes targets are in original space and transforms both.
+                         If False, assumes targets are already in the correct space (log or linear).
+        log_epsilon (float): Small value added before log to avoid log(0), default 1e-6
+        reduction (str): Specifies the reduction to apply to the output: 'none', 'mean', or 'sum'
+    
+    Note: When apply_log=True, the dataloader should NOT apply log transformation to targets,
+          as this loss will handle it. When apply_log=False and regress_log=True in dataloader,
+          the model should output predictions in log space.
+    """
+    def __init__(
+        self, 
+        loss_type='mse', 
+        apply_log=False, 
+        log_epsilon=1e-6, 
+        reduction='none'
+    ):
+        super().__init__()
+        self.loss_type = loss_type.lower()
+        self.apply_log = apply_log
+        self.log_epsilon = log_epsilon
+        self.reduction = reduction
+        
+        # Initialize the base loss function
+        if self.loss_type == 'mse':
+            self.loss_fn = nn.MSELoss(reduction=reduction)
+        elif self.loss_type == 'l1':
+            self.loss_fn = nn.L1Loss(reduction=reduction)
+        elif self.loss_type == 'huber':
+            self.loss_fn = nn.HuberLoss(reduction=reduction)
+        else:
+            raise ValueError(
+                f"Loss type '{loss_type}' not supported. Choose from 'mse', 'l1', or 'huber'."
+            )
+    
+    def forward(self, predictions, targets):
+        """
+        Compute the regression loss.
+        
+        Args:
+            predictions: Model predictions (torch.Tensor)
+            targets: Ground truth targets (torch.Tensor)
+        
+        Returns:
+            Loss value (torch.Tensor)
+        """
+        # Apply log transformation if specified
+        if self.apply_log:
+            # Transform both predictions and targets to log space
+            # Assumes both are in original (non-log) space
+            targets_transformed = torch.log(targets + self.log_epsilon)
+            #predictions_transformed = torch.log(predictions + self.log_epsilon)
+            predictions_transformed = predictions
+        else:
+            # Use targets and predictions as-is
+            # This handles the case where dataloader already applied log to targets
+            targets_transformed = targets
+            predictions_transformed = predictions
+        
+        # Compute loss
+        loss = self.loss_fn(predictions_transformed, targets_transformed)
+    
+        return loss
+
+
 def sum_reduce(num, device):
     r"""Sum the tensor across the devices."""
     if not torch.is_tensor(num):
@@ -219,7 +294,11 @@ def get_loss(
     loss = 0.0
     if outputs["y_pred"] is not None:
         if mode == "regression":
-            loss_class = torch.mean(class_cost(outputs["y_pred"], y))
+            # Squeeze predictions if shape is [batch_size, 1] to match target shape [batch_size]
+            y_pred = outputs["y_pred"]
+            if y_pred.ndim == 2 and y_pred.shape[1] == 1:
+                y_pred = y_pred.squeeze(1)
+            loss_class = torch.mean(class_cost(y_pred, y))
             logs["loss_class"] += loss_class.detach()
         else:
             counts = torch.bincount(y, minlength=outputs["y_pred"].shape[-1]).float()
@@ -335,9 +414,12 @@ def restore_checkpoint(
     lr_scheduler=None,
 ):
     device = "cuda:{}".format(device) if torch.cuda.is_available() else "cpu"
-
+    print("Trying to restore checkpoint from {}".format(os.path.join(checkpoint_dir, checkpoint_name)))
     if fine_tune and not os.path.exists(os.path.join(checkpoint_dir, checkpoint_name)):
         print(f"Fetching pretrained checkpoint {checkpoint_name}")
+        # make directory if it doesn't exist
+        if not os.path.exists(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
         file_url = f"https://portal.nersc.gov/cfs/m4567/checkpoints/{checkpoint_name}"
         file_path = os.path.join(checkpoint_dir, checkpoint_name)
         with requests.get(file_url, stream=True) as r:
