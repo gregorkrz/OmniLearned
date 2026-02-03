@@ -236,6 +236,8 @@ class HEPTorchDataset(Dataset):
         max_particles=150,
         classes=None,
         regress_log=False,
+        classification_event_type=False, #  if True, it will classify the event type (1, 2, 3, 4, 7, 8)
+        classification_current=False # if True, it will classify the event current (1, 2)
     ):
         """
         Args:
@@ -263,8 +265,16 @@ class HEPTorchDataset(Dataset):
         self.mode = mode
         self.nevts = int(nevts)
         self.max_particles = max_particles
-        self.class_idx = np.array([1, 2, 3, 4, 7, 8]) # 5 classes for the classification task; TODO: make more flexible
-        self.class_idx_map = {j: i for i, j in enumerate(self.class_idx)}
+        if classification_event_type:
+            self.class_idx = np.array([1, 2, 3, 4, 7, 8]) # 5 classes for the classification task; TODO: make more flexible
+            self.class_idx_map = {j: i for i, j in enumerate(self.class_idx)}
+
+        elif classification_current:
+            self.class_idx = np.array([1, 2])
+            self.class_idx_map = {j: i for i, j in enumerate(self.class_idx)}
+
+        elif mode == "classification":
+            raise ValueError("Invalid classification task")
 
     def __len__(self):
         if self.nevts > 0:
@@ -298,7 +308,7 @@ class HEPTorchDataset(Dataset):
             label_int = int(label.item()) if torch.is_tensor(label) else int(label)
             sample["y"] = torch.tensor(self.class_idx_map[label_int], dtype=torch.long)
         elif self.mode == "regression":
-            label = self.files_truth_labels[file_idx][sample_idx, 0] / 1000.0
+            label = self.files_truth_labels[file_idx][sample_idx, 0] / 1000.0 # regression target: Enu in GeV (TODO: change to a better quantity to regress)
             label_val = label.item() if torch.is_tensor(label) else label
             #if self.regress_log:
             #    label_val = np.log(label_val + 1e-8)  # Add small epsilon to avoid log(0)
@@ -340,6 +350,7 @@ def load_data(
     shuffle=True,
     nevts=-1,
     regress_log=False,
+    max_particles=150,
 ):
     supported_datasets = [
         "top",
@@ -396,6 +407,7 @@ def load_data(
             mode=mode,
             nevts=nevts,
             regress_log=regress_log,
+            max_particles=max_particles,
         )
         
         loader = DataLoader(

@@ -98,6 +98,7 @@ def train(
     mlp_drop: float = typer.Option(0.0, help="Dropout for mlp layers"),
     feature_drop: float = typer.Option(0.0, help="Dropout for input features"),
     num_workers: int = typer.Option(16, help="Number of workers for data loading"),
+    max_particles: int = typer.Option(150, help="Maximum number of particles per event"),
 ):
     run_training(
         outdir,
@@ -148,6 +149,7 @@ def train(
         clip_inputs=clip_inputs,
         regression_loss=regression_loss,
         regress_log=regress_log,
+        max_particles=max_particles,
     )
 
 
@@ -258,6 +260,8 @@ def evaluate(
         False, help="Clip input dataset to be within R=0.8 and atl least 500 MeV"
     ),
     num_workers: int = typer.Option(16, help="Number of workers for data loading"),
+    max_particles: int = typer.Option(150, help="Maximum number of particles per event"),
+
 ):
     run_evaluation(
         indir,
@@ -285,6 +289,7 @@ def evaluate(
         batch,
         num_workers,
         clip_inputs=clip_inputs,
+        max_particles=max_particles
     )
 
 
