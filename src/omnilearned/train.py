@@ -406,7 +406,62 @@ def run(
     clip_inputs: bool = False,
     regression_loss: str = "mse",
     regress_log: bool = False,
+    max_particles: int = 150,
 ):
+    # Save all these settings into a json file in the output directory
+    # - this is a bit bulky, but it's easy to add new settings later.
+    # - it's also easy to load the settings back in later.
+    settings = {
+        "outdir": outdir,
+        "save_tag": save_tag,
+        "pretrain_tag": pretrain_tag,
+        "dataset": dataset,
+        "path": path,
+        "wandb": wandb,
+        "fine_tune": fine_tune,
+        "num_feat": num_feat,
+        "model_size": model_size,
+        "interaction": interaction,
+        "local_interaction": local_interaction,
+        "num_coord": num_coord,
+        "K": K,
+        "interaction_type": interaction_type,
+        "conditional": conditional,
+        "num_cond": num_cond,
+        "use_pid": use_pid,
+        "pid_idx": pid_idx,
+        "pid_dim": pid_dim,
+        "use_add": use_add,
+        "num_add": num_add,
+        "zero_add": zero_add,
+        "use_clip": use_clip,
+        "use_event_loss": use_event_loss,
+        "num_classes": num_classes,
+        "num_gen_classes": num_gen_classes,
+        "mode": mode,
+        "batch": batch,
+        "iterations": iterations,
+        "epoch": epoch,
+        "warmup_epoch": warmup_epoch,
+        "use_amp": use_amp,
+        "optim": optim,
+        "sched": sched,
+        "b1": b1,
+        "b2": b2,
+        "lr": lr,
+        "lr_factor": lr_factor,
+        "wd": wd,
+        "nevts": nevts,
+        "attn_drop": attn_drop,
+        "mlp_drop": mlp_drop,
+        "feature_drop": feature_drop,
+        "num_workers": num_workers,
+        "clip_inputs": clip_inputs,
+        "regression_loss": regression_loss,
+        "regress_log": regress_log,
+        "max_particles": max_particles,
+    }
+    json.dump(settings, open(os.path.join(outdir, "settings.json"), "w"))
     local_rank, rank, size = ddp_setup()
     # Save all these settings to a json file into the output directory
     # For regression, we need num_classes=1 (single output value)
@@ -466,6 +521,7 @@ def run(
         clip_inputs=clip_inputs,
         mode=mode,
         nevts=nevts,
+        max_particles=max_particles
     )
     if rank == 0:
         print("**** Setup ****")

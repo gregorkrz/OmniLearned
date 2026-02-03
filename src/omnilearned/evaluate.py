@@ -158,6 +158,7 @@ def run(
     batch: int = 64,
     num_workers: int = 16,
     clip_inputs: bool = False,
+    max_particles: int = 150
 ):
     local_rank, rank, size = ddp_setup()
 
@@ -215,6 +216,7 @@ def run(
         clip_inputs=clip_inputs,
         mode=mode,
         shuffle=False,
+        max_particles=max_particles,
     )
     if rank == 0:
         print("**** Setup ****")
