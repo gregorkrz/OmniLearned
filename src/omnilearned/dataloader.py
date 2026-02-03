@@ -222,6 +222,17 @@ class HEPDataset(Dataset):
 
 
 
+def get_class_counts(class_idx, label_idx_to_class_idx, files_truth_labels, truth_labels_idx):
+    n_class = len(class_idx)
+    class_counts = np.zeros(n_class)
+    for file_idx in range(len(files_truth_labels)):
+        labels = files_truth_labels[file_idx][:, truth_labels_idx] # labels contain 1's and 2's, rewrite them into 0's and 1's based on class_idx indices of 1 and 2 in there
+        # 'rewrite' labels in a way 
+        labels = np.array([label_idx_to_class_idx[int(label.item())] for label in labels])
+        class_counts += np.bincount(labels, minlength=n_class)
+    return class_counts
+
+
 class HEPTorchDataset(Dataset):
     def __init__(
         self,
@@ -265,14 +276,19 @@ class HEPTorchDataset(Dataset):
         self.mode = mode
         self.nevts = int(nevts)
         self.max_particles = max_particles
+        self.classification_event_type = classification_event_type
+        self.classification_current = classification_current
         if classification_event_type:
-            self.class_idx = np.array([1, 2, 3, 4, 7, 8]) # 5 classes for the classification task; TODO: make more flexible
-            self.class_idx_map = {j: i for i, j in enumerate(self.class_idx)}
-
+            self.class_idx = np.array([1, 2, 3, 4, 8]) # 5 classes for the classification task; TODO: make more flexible
+            self.class_idx_map = {1: 0, 2: 1, 3: 2, 4: 3, 8: 4}
+            # Estimate the class weights
+            self.class_counts = get_class_counts(self.class_idx, self.class_idx_map, self.files_truth_labels, 1)
+            self.class_weights = 1 / (self.class_counts / np.sum(self.class_counts))
         elif classification_current:
             self.class_idx = np.array([1, 2])
-            self.class_idx_map = {j: i for i, j in enumerate(self.class_idx)}
-
+            self.class_idx_map = {1: 0, 2: 1}
+            self.class_counts = get_class_counts(self.class_idx, self.class_idx_map, self.files_truth_labels, -1)
+            self.class_weights = 1 / (self.class_counts / np.sum(self.class_counts))
         elif mode == "classification":
             raise ValueError("Invalid classification task")
 
@@ -303,8 +319,14 @@ class HEPTorchDataset(Dataset):
         sample = {}
 
         # Handle labels
-        if self.mode == "classification":
-            label = self.files_truth_labels[file_idx][sample_idx, 1]
+        if self.mode == "classifier":
+            if self.classification_event_type:
+                i = 1
+            elif self.classification_current:
+                i = -1
+            else:
+                raise ValueError("Invalid classification task")
+            label = self.files_truth_labels[file_idx][sample_idx, i]
             label_int = int(label.item()) if torch.is_tensor(label) else int(label)
             sample["y"] = torch.tensor(self.class_idx_map[label_int], dtype=torch.long)
         elif self.mode == "regression":
@@ -351,6 +373,8 @@ def load_data(
     nevts=-1,
     regress_log=False,
     max_particles=150,
+    classification_event_type=False,
+    classification_current=False,
 ):
     supported_datasets = [
         "top",
@@ -408,6 +432,8 @@ def load_data(
             nevts=nevts,
             regress_log=regress_log,
             max_particles=max_particles,
+            classification_event_type=classification_event_type,
+            classification_current=classification_current,
         )
         
         loader = DataLoader(
@@ -420,7 +446,7 @@ def load_data(
             drop_last=False,
             collate_fn=collate_point_cloud,
         )
-        return loader
+        return loader, data.class_weights if hasattr(data, "class_weights") else None
 
     if dataset_name == "pretrain":
         names = ["atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"]

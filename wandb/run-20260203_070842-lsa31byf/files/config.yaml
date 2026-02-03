@@ -1,0 +1,110 @@
+_wandb:
+    value:
+        cli_version: 0.24.1
+        e:
+            eyew77jkm5s8eetj9r2sdsh788a6oq10:
+                args:
+                    - train
+                    - --output_dir
+                    - /global/cfs/cdirs/m3246/gregork/checkpoints/classification_event_type_1A_20260202_230239
+                    - --save-tag
+                    - classification_event_type_1A_20260202_230239
+                    - --dataset
+                    - minerva_1A
+                    - --path
+                    - /global/cfs/cdirs/m3246/gregork/Minerva/20260201_all_max_blobs_and_prongs_split_fix_anomalies
+                    - --mode
+                    - classifier
+                    - --batch
+                    - "1024"
+                    - --epoch
+                    - "100"
+                    - --lr
+                    - "5e-5"
+                    - --size
+                    - small
+                    - --wd
+                    - "0.1"
+                    - --num-workers
+                    - "8"
+                    - --use-pid
+                    - --wandb
+                    - --max-particles
+                    - "33"
+                    - --class-event-type
+                    - --num-classes
+                    - "5"
+                cpu_count: 64
+                cpu_count_logical: 128
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "229268004864"
+                        used: "18033897472"
+                email: gregor.krzmanc@cern.ch
+                executable: /opt/conda/bin/python3.13
+                git:
+                    commit: b95a6d79c626500a3823f07e05fcd0b441788ef2
+                    remote: https://github.com/gregorkrz/OmniLearned
+                gpu: NVIDIA A100-SXM4-40GB
+                gpu_count: 4
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-7df80273-8dc9-b700-228a-1753d1e9aa29
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-43a997a8-a3af-ae0d-884b-b04ad88120ba
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-00dcb76a-9081-c58b-63af-84d67e60c246
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-e1c5ff76-137c-09a2-e1fa-0b0e24abd61d
+                host: 23a8abda4600
+                memory:
+                    total: "269727064064"
+                os: Linux-5.14.21-150500.55.97_13.0.78-cray_shasta_c-x86_64-with-glibc2.36
+                program: -m omnilearned.cli
+                python: CPython 3.13.2
+                root: /workspace/OmniLearned
+                startedAt: "2026-02-03T07:08:42.275094Z"
+                writerId: eyew77jkm5s8eetj9r2sdsh788a6oq10
+        m: []
+        python_version: 3.13.2
+        t:
+            "1":
+                - 1
+                - 5
+                - 49
+                - 53
+                - 83
+            "2":
+                - 1
+                - 5
+                - 49
+                - 53
+                - 83
+            "3":
+                - 13
+                - 16
+            "4": 3.13.2
+            "5": 0.24.1
+            "12": 0.24.1
+            "13": linux-x86_64
+batch size:
+    value: 1024
+epochs:
+    value: 100
+learning_rate:
+    value: 5e-05
+mode:
+    value: classifier

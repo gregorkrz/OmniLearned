@@ -25,6 +25,7 @@ from omnilearned.utils import (
 
 import time
 import os
+import shutil
 import torch.amp as amp
 
 torch.set_float32_matmul_precision("high")
@@ -72,7 +73,7 @@ def train_step(
     # Progress logging settings
     log_interval = 1000  # Log every 1000 steps
     running_loss = 0.0
-
+    log_start_time = time.time()
     for batch_idx in range(iterations_per_epoch):
         try:
             batch = next(data_iter)
@@ -135,13 +136,17 @@ def train_step(
         # Progress logging
         running_loss += loss.item()
         if is_master_node() and (batch_idx + 1) % log_interval == 0:
+            elapsed_time = time.time() - log_start_time
+            iter_per_sec = log_interval / elapsed_time if elapsed_time > 0 else 0.0
             avg_loss = running_loss / log_interval
             progress = (batch_idx + 1) / iterations_per_epoch * 100
             print(
                 f"  [{batch_idx + 1}/{iterations_per_epoch}] ({progress:.1f}%) - "
-                f"Loss: {avg_loss:.4f}, LR: {scheduler.get_last_lr()[0]:.2e}"
+                f"Loss: {avg_loss:.4f}, LR: {scheduler.get_last_lr()[0]:.2e}, "
+                f"Speed: {iter_per_sec:.2f} it/s"
             )
             running_loss = 0.0
+            log_start_time = time.time()
 
     if dist.is_initialized():
         for key in logs:
@@ -172,6 +177,7 @@ def val_step(
 
     # Progress logging settings
     log_interval = 1000  # Log every 1000 steps during validation
+    log_start_time = time.time()
 
     data_iter = iter(dataloader)
     for batch_idx in range(iterations_per_epoch):
@@ -211,8 +217,14 @@ def val_step(
         
         # Progress logging for validation
         if is_master_node() and (batch_idx + 1) % log_interval == 0:
+            elapsed_time = time.time() - log_start_time
+            iter_per_sec = log_interval / elapsed_time if elapsed_time > 0 else 0.0
             progress = (batch_idx + 1) / iterations_per_epoch * 100
-            print(f"  Validation: [{batch_idx + 1}/{iterations_per_epoch}] ({progress:.1f}%)")
+            print(
+                f"  Validation: [{batch_idx + 1}/{iterations_per_epoch}] ({progress:.1f}%) - "
+                f"Speed: {iter_per_sec:.2f} it/s"
+            )
+            log_start_time = time.time()
 
     if dist.is_initialized():
         for key in logs:
@@ -407,6 +419,8 @@ def run(
     regression_loss: str = "mse",
     regress_log: bool = False,
     max_particles: int = 150,
+    class_current_type: bool = False,
+    class_event_type: bool = False,
 ):
     # Save all these settings into a json file in the output directory
     # - this is a bit bulky, but it's easy to add new settings later.
@@ -460,6 +474,8 @@ def run(
         "regression_loss": regression_loss,
         "regress_log": regress_log,
         "max_particles": max_particles,
+        "class_current_type": class_current_type,
+        "class_event_type": class_event_type,
     }
     json.dump(settings, open(os.path.join(outdir, "settings.json"), "w"))
     local_rank, rank, size = ddp_setup()
@@ -505,7 +521,7 @@ def run(
         print("************")
 
     # load in train data
-    train_loader = load_data(
+    train_loader, train_class_weights = load_data(
         dataset,
         dataset_type="train",
         use_cond=conditional,
@@ -521,14 +537,16 @@ def run(
         clip_inputs=clip_inputs,
         mode=mode,
         nevts=nevts,
-        max_particles=max_particles
+        max_particles=max_particles,
+        classification_current=class_current_type,
+        classification_event_type=class_event_type
     )
     if rank == 0:
         print("**** Setup ****")
         print(f"Train dataset len: {len(train_loader)}")
         print("************")
 
-    val_loader = load_data(
+    val_loader, val_class_weights = load_data(
         dataset,
         dataset_type="val",
         use_cond=conditional,
@@ -543,6 +561,8 @@ def run(
         size=size,
         clip_inputs=clip_inputs,
         mode=mode,
+        classification_current=class_current_type,
+        classification_event_type=class_event_type,
     )
 
     param_groups = get_param_groups(
@@ -600,6 +620,27 @@ def run(
     epoch_init = 0
     loss_init = np.inf
     checkpoint_name = None
+
+    # Handle pretrain_tag if it's a full path to a checkpoint file
+    if fine_tune and pretrain_tag and os.path.isfile(pretrain_tag):
+        if is_master_node():
+            print(f"Detected pretrain_tag as file path: {pretrain_tag}")
+            print(f"Copying checkpoint to output directory: {outdir}")
+            
+            # Copy the checkpoint file to the output directory
+            checkpoint_basename = os.path.basename(pretrain_tag)
+            dest_path = os.path.join(outdir, checkpoint_basename)
+            shutil.copy2(pretrain_tag, dest_path)
+            print(f"Copied {pretrain_tag} -> {dest_path}")
+            
+            # Extract the tag from the filename (remove "best_model_" prefix and ".pt" suffix)
+            if checkpoint_basename.startswith("best_model_") and checkpoint_basename.endswith(".pt"):
+                pretrain_tag = checkpoint_basename[11:-3]  # Remove "best_model_" and ".pt"
+            else:
+                # If it doesn't follow the expected naming convention, use the basename without extension
+                pretrain_tag = os.path.splitext(checkpoint_basename)[0]
+            
+            print(f"Using pretrain_tag: {pretrain_tag}")
 
     if os.path.isfile(os.path.join(outdir, get_checkpoint_name(save_tag))) and resuming:
         if is_master_node():
@@ -663,7 +704,9 @@ def run(
             reduction="none"
         )
     else:
-        loss_class = nn.CrossEntropyLoss(reduction="none")
+        weights = torch.tensor(train_class_weights).float()
+        weights= weights.to(device)
+        loss_class = nn.CrossEntropyLoss(reduction="none", weight=weights)
 
     if mode == "ftag":
         loss_gen = nn.CrossEntropyLoss(reduction="none")

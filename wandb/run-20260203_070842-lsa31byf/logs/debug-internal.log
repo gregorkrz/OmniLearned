@@ -1,0 +1,11 @@
+{"time":"2026-02-03T07:08:42.608066494Z","level":"INFO","msg":"stream: starting","core version":"0.24.1"}
+{"time":"2026-02-03T07:08:42.885438576Z","level":"INFO","msg":"stream: created new stream","id":"lsa31byf"}
+{"time":"2026-02-03T07:08:42.88585387Z","level":"INFO","msg":"handler: started","stream_id":"lsa31byf"}
+{"time":"2026-02-03T07:08:42.894414881Z","level":"INFO","msg":"stream: started","id":"lsa31byf"}
+{"time":"2026-02-03T07:08:42.894459197Z","level":"INFO","msg":"writer: started","stream_id":"lsa31byf"}
+{"time":"2026-02-03T07:08:42.894480518Z","level":"INFO","msg":"sender: started","stream_id":"lsa31byf"}
+{"time":"2026-02-03T07:30:43.949008198Z","level":"INFO","msg":"stream: closing","id":"lsa31byf"}
+{"time":"2026-02-03T07:30:44.3680102Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-02-03T07:30:44.585845178Z","level":"INFO","msg":"handler: closed","stream_id":"lsa31byf"}
+{"time":"2026-02-03T07:30:44.594406957Z","level":"INFO","msg":"sender: closed","stream_id":"lsa31byf"}
+{"time":"2026-02-03T07:30:44.594716527Z","level":"INFO","msg":"stream: closed","id":"lsa31byf"}

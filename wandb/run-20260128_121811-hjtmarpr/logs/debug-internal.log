@@ -1,0 +1,8 @@
+{"time":"2026-01-28T12:18:11.808838485-08:00","level":"INFO","msg":"stream: starting","core version":"0.24.0"}
+{"time":"2026-01-28T12:18:12.07915401-08:00","level":"INFO","msg":"stream: created new stream","id":"hjtmarpr"}
+{"time":"2026-01-28T12:18:12.07952656-08:00","level":"INFO","msg":"handler: started","stream_id":"hjtmarpr"}
+{"time":"2026-01-28T12:18:12.088098239-08:00","level":"INFO","msg":"stream: started","id":"hjtmarpr"}
+{"time":"2026-01-28T12:18:12.088149578-08:00","level":"INFO","msg":"writer: started","stream_id":"hjtmarpr"}
+{"time":"2026-01-28T12:18:12.088172533-08:00","level":"INFO","msg":"sender: started","stream_id":"hjtmarpr"}
+{"time":"2026-01-28T13:54:42.816276313-08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/fcc_ml/omnithings/hjtmarpr/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2026-01-28T15:57:27.468805748-08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/fcc_ml/omnithings/hjtmarpr/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}

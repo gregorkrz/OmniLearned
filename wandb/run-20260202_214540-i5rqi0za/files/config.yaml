@@ -1,0 +1,94 @@
+_wandb:
+    value:
+        cli_version: 0.24.0
+        e:
+            bmjl2c88mrrsjxucyeywe4bnyjrt4hv6:
+                args:
+                    - train
+                    - --output_dir
+                    - /global/cfs/cdirs/m3246/gregork/checkpoints/classification_event_type_1A_20260202_212759
+                    - --save-tag
+                    - classification_event_type_1A_20260202_214434
+                    - --dataset
+                    - minerva_1A
+                    - --path
+                    - /global/cfs/cdirs/m3246/gregork/Minerva/20260201_all_max_blobs_and_prongs_split
+                    - --mode
+                    - regression
+                    - --regression-loss
+                    - l1
+                    - --batch
+                    - "1024"
+                    - --epoch
+                    - "100"
+                    - --lr
+                    - "5e-5"
+                    - --size
+                    - small
+                    - --wd
+                    - "0.1"
+                    - --num-workers
+                    - "8"
+                    - --use-pid
+                    - --wandb
+                    - --max-particles
+                    - "3"
+                cpu_count: 128
+                cpu_count_logical: 256
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "270030700544"
+                        used: "5996716032"
+                email: gregor.krzmanc@cern.ch
+                executable: /global/homes/g/gregork/.conda/envs/omni/bin/python3.12
+                git:
+                    commit: b95a6d79c626500a3823f07e05fcd0b441788ef2
+                    remote: https://github.com/gregorkrz/OmniLearned
+                gpu: NVIDIA A100-PCIE-40GB
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-PCIE-40GB
+                      uuid: GPU-36294a18-fae7-8be8-cbae-4df8cfdd0c24
+                host: login18
+                memory:
+                    total: "540061405184"
+                os: Linux-5.14.21-150500.55.97_13.0.78-cray_shasta_c-x86_64-with-glibc2.31
+                program: -m omnilearned.cli
+                python: CPython 3.12.12
+                root: /global/u2/g/gregork/OmniLearned
+                startedAt: "2026-02-03T05:45:40.115743Z"
+                writerId: bmjl2c88mrrsjxucyeywe4bnyjrt4hv6
+        m: []
+        python_version: 3.12.12
+        t:
+            "1":
+                - 1
+                - 5
+                - 49
+                - 53
+                - 83
+            "2":
+                - 1
+                - 5
+                - 49
+                - 53
+                - 83
+            "3":
+                - 13
+                - 16
+            "4": 3.12.12
+            "5": 0.24.0
+            "12": 0.24.0
+            "13": linux-x86_64
+batch size:
+    value: 1024
+epochs:
+    value: 100
+learning_rate:
+    value: 5e-05
+mode:
+    value: regression

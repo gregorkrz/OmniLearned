@@ -1,0 +1,91 @@
+{
+  "os":  "Linux-5.14.21-150500.55.97_13.0.78-cray_shasta_c-x86_64-with-glibc2.36",
+  "python":  "CPython 3.13.2",
+  "startedAt":  "2026-02-03T07:08:42.275094Z",
+  "args":  [
+    "train",
+    "--output_dir",
+    "/global/cfs/cdirs/m3246/gregork/checkpoints/classification_event_type_1A_20260202_230239",
+    "--save-tag",
+    "classification_event_type_1A_20260202_230239",
+    "--dataset",
+    "minerva_1A",
+    "--path",
+    "/global/cfs/cdirs/m3246/gregork/Minerva/20260201_all_max_blobs_and_prongs_split_fix_anomalies",
+    "--mode",
+    "classifier",
+    "--batch",
+    "1024",
+    "--epoch",
+    "100",
+    "--lr",
+    "5e-5",
+    "--size",
+    "small",
+    "--wd",
+    "0.1",
+    "--num-workers",
+    "8",
+    "--use-pid",
+    "--wandb",
+    "--max-particles",
+    "33",
+    "--class-event-type",
+    "--num-classes",
+    "5"
+  ],
+  "program":  "-m omnilearned.cli",
+  "git":  {
+    "remote":  "https://github.com/gregorkrz/OmniLearned",
+    "commit":  "b95a6d79c626500a3823f07e05fcd0b441788ef2"
+  },
+  "email":  "gregor.krzmanc@cern.ch",
+  "root":  "/workspace/OmniLearned",
+  "host":  "23a8abda4600",
+  "executable":  "/opt/conda/bin/python3.13",
+  "cpu_count":  64,
+  "cpu_count_logical":  128,
+  "gpu":  "NVIDIA A100-SXM4-40GB",
+  "gpu_count":  4,
+  "disk":  {
+    "/":  {
+      "total":  "229268004864",
+      "used":  "18033897472"
+    }
+  },
+  "memory":  {
+    "total":  "269727064064"
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA A100-SXM4-40GB",
+      "memoryTotal":  "42949672960",
+      "cudaCores":  6912,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-7df80273-8dc9-b700-228a-1753d1e9aa29"
+    },
+    {
+      "name":  "NVIDIA A100-SXM4-40GB",
+      "memoryTotal":  "42949672960",
+      "cudaCores":  6912,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-43a997a8-a3af-ae0d-884b-b04ad88120ba"
+    },
+    {
+      "name":  "NVIDIA A100-SXM4-40GB",
+      "memoryTotal":  "42949672960",
+      "cudaCores":  6912,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-00dcb76a-9081-c58b-63af-84d67e60c246"
+    },
+    {
+      "name":  "NVIDIA A100-SXM4-40GB",
+      "memoryTotal":  "42949672960",
+      "cudaCores":  6912,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-e1c5ff76-137c-09a2-e1fa-0b0e24abd61d"
+    }
+  ],
+  "cudaVersion":  "12.4",
+  "writerId":  "eyew77jkm5s8eetj9r2sdsh788a6oq10"
+}

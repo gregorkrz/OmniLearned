@@ -1,0 +1,241 @@
+
+Epoch 1/100 - Training:
+Number of events per file [6080806]
+Number of events per file [6080806]
+Number of events per file [6080806]
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/cli.py", line 346, in <module>
+    app()
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/main.py", line 336, in __call__
+    raise e
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/main.py", line 319, in __call__
+    return get_command(self)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/click/core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/core.py", line 814, in main
+    return _main(
+           ^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/core.py", line 190, in _main
+    rv = self.invoke(ctx)
+         ^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/click/core.py", line 1873, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/click/core.py", line 1269, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/click/core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/main.py", line 706, in wrapper
+    return callback(**use_params)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/cli.py", line 103, in train
+    run_training(
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/train.py", line 692, in run
+    train_model(
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/train.py", line 282, in train_model
+    train_logs = train_step(
+                 ^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/train.py", line 102, in train_step
+    outputs = model(X, y, **model_kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1666, in forward
+    else self._run_ddp_forward(*inputs, **kwargs)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1492, in _run_ddp_forward
+    return self.module(*inputs, **kwargs)  # type: ignore[index]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/network.py", line 170, in forward
+    x_body = self.body(x, cond, pid, add_info, torch.zeros_like(time))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/network.py", line 548, in forward
+    local_features, indices = self.local_physics(
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/layers.py", line 295, in forward
+    _, indices = torch.topk(-distances, k=self.K + 1, dim=-1)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: selected index k out of range
+Error in sys.excepthook:
+Traceback (most recent call last):
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/wandb/sdk/lib/exit_hooks.py", line 54, in exc_handler
+    self._orig_excepthook(exc_type, exc, tb)
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/distributed/distributed_c10d.py", line 1842, in _distributed_excepthook
+    old_hook(*args)
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/main.py", line 83, in except_hook
+    console_stderr.print(rich_tb)
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/console.py", line 1724, in print
+    extend(render(renderable, render_options))
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/console.py", line 1349, in render
+    yield from self.render(render_output, _options)
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/console.py", line 1349, in render
+    yield from self.render(render_output, _options)
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/console.py", line 1349, in render
+    yield from self.render(render_output, _options)
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/console.py", line 1345, in render
+    for render_output in iter_render:
+                         ^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/panel.py", line 229, in __rich_console__
+    lines = console.render_lines(renderable, child_options, style=style)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/console.py", line 1385, in render_lines
+    lines = list(
+            ^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/segment.py", line 336, in split_and_crop_lines
+    for segment in segments:
+                   ^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/console.py", line 1345, in render
+    for render_output in iter_render:
+                         ^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/padding.py", line 97, in __rich_console__
+    lines = console.render_lines(
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/console.py", line 1385, in render_lines
+    lines = list(
+            ^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/segment.py", line 336, in split_and_crop_lines
+    for segment in segments:
+                   ^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/console.py", line 1349, in render
+    yield from self.render(render_output, _options)
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/console.py", line 1345, in render
+    for render_output in iter_render:
+                         ^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/syntax.py", line 643, in __rich_console__
+    segments = Segments(self._get_syntax(console, options))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/segment.py", line 712, in __init__
+    self.segments = list(segments)
+                    ^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/syntax.py", line 673, in _get_syntax
+    text = self.highlight(processed_code, self.line_range)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/syntax.py", line 537, in highlight
+    text.append_tokens(tokens_to_spans())
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/text.py", line 1045, in append_tokens
+    for content, style in tokens:
+                          ^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/syntax.py", line 523, in tokens_to_spans
+    _token_type, token = next(tokens)
+                         ^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/rich/syntax.py", line 509, in line_tokenize
+    for token_type, token in lexer.get_tokens(code):
+                             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/pygments/lexer.py", line 270, in streamer
+    for _, t, v in self.get_tokens_unprocessed(text):
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/pygments/lexer.py", line 712, in get_tokens_unprocessed
+    m = rexmatch(text, pos)
+        ^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+
+Original exception was:
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/cli.py", line 346, in <module>
+    app()
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/main.py", line 336, in __call__
+    raise e
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/main.py", line 319, in __call__
+    return get_command(self)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/click/core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/core.py", line 814, in main
+    return _main(
+           ^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/core.py", line 190, in _main
+    rv = self.invoke(ctx)
+         ^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/click/core.py", line 1873, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/click/core.py", line 1269, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/click/core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/typer/main.py", line 706, in wrapper
+    return callback(**use_params)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/cli.py", line 103, in train
+    run_training(
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/train.py", line 692, in run
+    train_model(
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/train.py", line 282, in train_model
+    train_logs = train_step(
+                 ^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/train.py", line 102, in train_step
+    outputs = model(X, y, **model_kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1666, in forward
+    else self._run_ddp_forward(*inputs, **kwargs)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1492, in _run_ddp_forward
+    return self.module(*inputs, **kwargs)  # type: ignore[index]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/network.py", line 170, in forward
+    x_body = self.body(x, cond, pid, add_info, torch.zeros_like(time))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/network.py", line 548, in forward
+    local_features, indices = self.local_physics(
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/global/homes/g/gregork/.conda/envs/omni/lib/python3.12/site-packages/omnilearned/layers.py", line 295, in forward
+    _, indices = torch.topk(-distances, k=self.K + 1, dim=-1)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: selected index k out of range

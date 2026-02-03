@@ -1,0 +1,9 @@
+
+Epoch 1/100 - Training:
+Number of events per file [6080324]
+Number of events per file [6080324]
+Number of events per file [6080324]
+  [1000/5938] (16.8%) - Loss: 21.6409, LR: 5.00e-05, Speed: 4.92 it/s
+  [2000/5938] (33.7%) - Loss: 20.1697, LR: 5.00e-05, Speed: 4.93 it/s
+  [3000/5938] (50.5%) - Loss: 19.7264, LR: 5.00e-05, Speed: 4.94 it/s
+  [4000/5938] (67.4%) - Loss: 19.4938, LR: 5.00e-05, Speed: 4.93 it/s

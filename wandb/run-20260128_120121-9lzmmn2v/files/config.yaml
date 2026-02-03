@@ -1,0 +1,92 @@
+_wandb:
+    value:
+        cli_version: 0.24.0
+        e:
+            d809hds3lvxp5s6725vrvi7okzq5lvw1:
+                args:
+                    - train
+                    - --output_dir
+                    - /global/cfs/cdirs/m3246/gregork/checkpoints/20260127_nested_split/l1
+                    - --save-tag
+                    - debug_M_L1
+                    - --dataset
+                    - minerva_1A
+                    - --path
+                    - /global/cfs/cdirs/m3246/gregork/Minerva/20260127_nested_split
+                    - --mode
+                    - regression
+                    - --regression-loss
+                    - l1
+                    - --batch
+                    - "1"
+                    - --epoch
+                    - "20"
+                    - --lr
+                    - "5e-5"
+                    - --size
+                    - small
+                    - --wd
+                    - "0.1"
+                    - --num-workers
+                    - "1"
+                    - --use-pid
+                    - --wandb
+                cpu_count: 128
+                cpu_count_logical: 256
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "270030704640"
+                        used: "1607143424"
+                email: gregor.krzmanc@cern.ch
+                executable: /global/homes/g/gregork/.conda/envs/omni/bin/python3.12
+                git:
+                    commit: f98e7faf0b426ead095aad91db72eca3dc0f5cd9
+                    remote: https://github.com/gregorkrz/OmniLearned
+                gpu: NVIDIA A100-PCIE-40GB
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-PCIE-40GB
+                      uuid: GPU-ed352c95-b826-2429-e7fa-df7c422053a1
+                host: login28
+                memory:
+                    total: "540061409280"
+                os: Linux-5.14.21-150500.55.97_13.0.78-cray_shasta_c-x86_64-with-glibc2.31
+                program: /global/homes/g/gregork/.conda/envs/omni/bin/omnilearned
+                python: CPython 3.12.12
+                root: /global/u2/g/gregork/OmniLearned
+                startedAt: "2026-01-28T20:01:21.871798Z"
+                writerId: d809hds3lvxp5s6725vrvi7okzq5lvw1
+        m: []
+        python_version: 3.12.12
+        t:
+            "1":
+                - 1
+                - 5
+                - 49
+                - 53
+                - 83
+            "2":
+                - 1
+                - 5
+                - 49
+                - 53
+                - 83
+            "3":
+                - 13
+                - 16
+            "4": 3.12.12
+            "5": 0.24.0
+            "12": 0.24.0
+            "13": linux-x86_64
+batch size:
+    value: 1
+epochs:
+    value: 20
+learning_rate:
+    value: 5e-05
+mode:
+    value: regression

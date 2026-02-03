@@ -200,7 +200,7 @@ def run(
         print("************")
 
     # load in train data
-    test_loader = load_data(
+    test_loader, test_class_weights = load_data(
         dataset,
         dataset_type="test",
         use_cond=True,

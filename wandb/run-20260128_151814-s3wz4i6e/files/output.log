@@ -1,0 +1,280 @@
+
+Epoch 1/20 - Training:
+  [1000/7813] (12.8%) - Loss: 2.3928, LR: 5.00e-05
+  [2000/7813] (25.6%) - Loss: 2.1531, LR: 5.00e-05
+  [3000/7813] (38.4%) - Loss: 2.0679, LR: 5.00e-05
+  [4000/7813] (51.2%) - Loss: 2.0740, LR: 4.99e-05
+  [5000/7813] (64.0%) - Loss: 2.0148, LR: 4.99e-05
+  [6000/7813] (76.8%) - Loss: 2.0408, LR: 4.98e-05
+  [7000/7813] (89.6%) - Loss: 1.9898, LR: 4.98e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [1/20] Loss: 2.0936, Val Loss: 2.0620 , lr: 4.9692208514878444e-05
+Class Loss: 2.0936, Class Val Loss: 2.0620
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 0 is 1194.4015040397644 sec
+replacing best checkpoint ...
+Epoch 1 | Training checkpoint saved at /global/cfs/cdirs/m3246/gregork/checkpoints/20260127_nested_split/L1_initial_training_smalldataset_FT_OmniLearnedSmall/best_model_M1A_L1_pretrainedSmall.pt
+
+Epoch 2/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.9629, LR: 4.96e-05
+  [2000/7813] (25.6%) - Loss: 1.9705, LR: 4.95e-05
+  [3000/7813] (38.4%) - Loss: 1.9512, LR: 4.94e-05
+  [4000/7813] (51.2%) - Loss: 1.9524, LR: 4.93e-05
+  [5000/7813] (64.0%) - Loss: 1.9271, LR: 4.92e-05
+  [6000/7813] (76.8%) - Loss: 1.9166, LR: 4.90e-05
+  [7000/7813] (89.6%) - Loss: 1.9138, LR: 4.89e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [2/20] Loss: 1.9387, Val Loss: 1.8984 , lr: 4.877641290737884e-05
+Class Loss: 1.9387, Class Val Loss: 1.8984
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 1 is 1191.607492685318 sec
+replacing best checkpoint ...
+Epoch 2 | Training checkpoint saved at /global/cfs/cdirs/m3246/gregork/checkpoints/20260127_nested_split/L1_initial_training_smalldataset_FT_OmniLearnedSmall/best_model_M1A_L1_pretrainedSmall.pt
+
+Epoch 3/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.9294, LR: 4.86e-05
+  [2000/7813] (25.6%) - Loss: 1.8998, LR: 4.84e-05
+  [3000/7813] (38.4%) - Loss: 1.8980, LR: 4.83e-05
+  [4000/7813] (51.2%) - Loss: 1.9116, LR: 4.81e-05
+  [5000/7813] (64.0%) - Loss: 1.8933, LR: 4.79e-05
+  [6000/7813] (76.8%) - Loss: 1.8997, LR: 4.77e-05
+  [7000/7813] (89.6%) - Loss: 1.8741, LR: 4.75e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [3/20] Loss: 1.8988, Val Loss: 1.9329 , lr: 4.72751631047092e-05
+Class Loss: 1.8988, Class Val Loss: 1.9329
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 2 is 1191.4877593517303 sec
+
+Epoch 4/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.9476, LR: 4.70e-05
+  [2000/7813] (25.6%) - Loss: 1.8572, LR: 4.68e-05
+  [3000/7813] (38.4%) - Loss: 1.9094, LR: 4.66e-05
+  [4000/7813] (51.2%) - Loss: 1.9050, LR: 4.63e-05
+  [5000/7813] (64.0%) - Loss: 1.8611, LR: 4.60e-05
+  [6000/7813] (76.8%) - Loss: 1.8820, LR: 4.57e-05
+  [7000/7813] (89.6%) - Loss: 1.8740, LR: 4.55e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [4/20] Loss: 1.8888, Val Loss: 1.8459 , lr: 4.522542485937369e-05
+Class Loss: 1.8888, Class Val Loss: 1.8459
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 3 is 1191.480761051178 sec
+replacing best checkpoint ...
+Epoch 4 | Training checkpoint saved at /global/cfs/cdirs/m3246/gregork/checkpoints/20260127_nested_split/L1_initial_training_smalldataset_FT_OmniLearnedSmall/best_model_M1A_L1_pretrainedSmall.pt
+
+Epoch 5/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.8608, LR: 4.49e-05
+  [2000/7813] (25.6%) - Loss: 1.8632, LR: 4.46e-05
+  [3000/7813] (38.4%) - Loss: 1.8638, LR: 4.43e-05
+  [4000/7813] (51.2%) - Loss: 1.8860, LR: 4.40e-05
+  [5000/7813] (64.0%) - Loss: 1.8347, LR: 4.36e-05
+  [6000/7813] (76.8%) - Loss: 1.8679, LR: 4.33e-05
+  [7000/7813] (89.6%) - Loss: 1.8545, LR: 4.30e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [5/20] Loss: 1.8604, Val Loss: 1.8399 , lr: 4.267766952966369e-05
+Class Loss: 1.8604, Class Val Loss: 1.8399
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 4 is 1191.3184821605682 sec
+replacing best checkpoint ...
+Epoch 5 | Training checkpoint saved at /global/cfs/cdirs/m3246/gregork/checkpoints/20260127_nested_split/L1_initial_training_smalldataset_FT_OmniLearnedSmall/best_model_M1A_L1_pretrainedSmall.pt
+
+Epoch 6/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.8620, LR: 4.23e-05
+  [2000/7813] (25.6%) - Loss: 1.8664, LR: 4.20e-05
+  [3000/7813] (38.4%) - Loss: 2.1374, LR: 4.16e-05
+  [4000/7813] (51.2%) - Loss: 1.8378, LR: 4.12e-05
+  [5000/7813] (64.0%) - Loss: 1.8394, LR: 4.08e-05
+  [6000/7813] (76.8%) - Loss: 1.8342, LR: 4.04e-05
+  [7000/7813] (89.6%) - Loss: 1.8563, LR: 4.00e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [6/20] Loss: 1.8844, Val Loss: 1.8429 , lr: 3.969463130731183e-05
+Class Loss: 1.8844, Class Val Loss: 1.8429
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 5 is 1192.295215845108 sec
+
+Epoch 7/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.8235, LR: 3.93e-05
+  [2000/7813] (25.6%) - Loss: 1.8456, LR: 3.89e-05
+  [3000/7813] (38.4%) - Loss: 1.8313, LR: 3.84e-05
+  [4000/7813] (51.2%) - Loss: 1.8181, LR: 3.80e-05
+  [5000/7813] (64.0%) - Loss: 1.8357, LR: 3.76e-05
+  [6000/7813] (76.8%) - Loss: 1.8361, LR: 3.72e-05
+  [7000/7813] (89.6%) - Loss: 1.8373, LR: 3.67e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [7/20] Loss: 1.8318, Val Loss: 1.8113 , lr: 3.634976249348867e-05
+Class Loss: 1.8318, Class Val Loss: 1.8113
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 6 is 1191.5110652446747 sec
+replacing best checkpoint ...
+Epoch 7 | Training checkpoint saved at /global/cfs/cdirs/m3246/gregork/checkpoints/20260127_nested_split/L1_initial_training_smalldataset_FT_OmniLearnedSmall/best_model_M1A_L1_pretrainedSmall.pt
+
+Epoch 8/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.8147, LR: 3.59e-05
+  [2000/7813] (25.6%) - Loss: 1.8168, LR: 3.54e-05
+  [3000/7813] (38.4%) - Loss: 1.8117, LR: 3.50e-05
+  [4000/7813] (51.2%) - Loss: 1.8390, LR: 3.45e-05
+  [5000/7813] (64.0%) - Loss: 1.8262, LR: 3.41e-05
+  [6000/7813] (76.8%) - Loss: 1.8189, LR: 3.36e-05
+  [7000/7813] (89.6%) - Loss: 1.8144, LR: 3.31e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [8/20] Loss: 1.8195, Val Loss: 1.8081 , lr: 3.272542485937369e-05
+Class Loss: 1.8195, Class Val Loss: 1.8081
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 7 is 1192.798050403595 sec
+replacing best checkpoint ...
+Epoch 8 | Training checkpoint saved at /global/cfs/cdirs/m3246/gregork/checkpoints/20260127_nested_split/L1_initial_training_smalldataset_FT_OmniLearnedSmall/best_model_M1A_L1_pretrainedSmall.pt
+
+Epoch 9/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.8076, LR: 3.22e-05
+  [2000/7813] (25.6%) - Loss: 1.8130, LR: 3.18e-05
+  [3000/7813] (38.4%) - Loss: 1.7890, LR: 3.13e-05
+  [4000/7813] (51.2%) - Loss: 1.8160, LR: 3.08e-05
+  [5000/7813] (64.0%) - Loss: 1.8188, LR: 3.03e-05
+  [6000/7813] (76.8%) - Loss: 1.8051, LR: 2.98e-05
+  [7000/7813] (89.6%) - Loss: 1.8186, LR: 2.93e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [9/20] Loss: 1.8099, Val Loss: 1.8089 , lr: 2.8910861626005776e-05
+Class Loss: 1.8099, Class Val Loss: 1.8089
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 8 is 1191.364153623581 sec
+
+Epoch 10/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.8093, LR: 2.84e-05
+  [2000/7813] (25.6%) - Loss: 1.7907, LR: 2.79e-05
+  [3000/7813] (38.4%) - Loss: 1.7954, LR: 2.74e-05
+  [4000/7813] (51.2%) - Loss: 1.8136, LR: 2.69e-05
+  [5000/7813] (64.0%) - Loss: 1.7900, LR: 2.64e-05
+  [6000/7813] (76.8%) - Loss: 1.8193, LR: 2.59e-05
+  [7000/7813] (89.6%) - Loss: 1.8029, LR: 2.54e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [10/20] Loss: 1.8001, Val Loss: 1.8096 , lr: 2.5e-05
+Class Loss: 1.8001, Class Val Loss: 1.8096
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 9 is 1191.5482556819916 sec
+
+Epoch 11/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.7959, LR: 2.45e-05
+  [2000/7813] (25.6%) - Loss: 1.7886, LR: 2.40e-05
+  [3000/7813] (38.4%) - Loss: 1.7739, LR: 2.35e-05
+  [4000/7813] (51.2%) - Loss: 1.7886, LR: 2.30e-05
+  [5000/7813] (64.0%) - Loss: 1.7714, LR: 2.25e-05
+  [6000/7813] (76.8%) - Loss: 1.7902, LR: 2.20e-05
+  [7000/7813] (89.6%) - Loss: 1.7973, LR: 2.15e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [11/20] Loss: 1.7853, Val Loss: 1.7786 , lr: 2.1089138373994223e-05
+Class Loss: 1.7853, Class Val Loss: 1.7786
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 10 is 1191.6997563838959 sec
+replacing best checkpoint ...
+Epoch 11 | Training checkpoint saved at /global/cfs/cdirs/m3246/gregork/checkpoints/20260127_nested_split/L1_initial_training_smalldataset_FT_OmniLearnedSmall/best_model_M1A_L1_pretrainedSmall.pt
+
+Epoch 12/20 - Training:
+  [1000/7813] (12.8%) - Loss: 1.7986, LR: 2.06e-05
+  [2000/7813] (25.6%) - Loss: 1.7746, LR: 2.01e-05
+  [3000/7813] (38.4%) - Loss: 1.7639, LR: 1.96e-05
+  [4000/7813] (51.2%) - Loss: 1.7870, LR: 1.91e-05
+  [5000/7813] (64.0%) - Loss: 1.7709, LR: 1.86e-05
+  [6000/7813] (76.8%) - Loss: 1.7687, LR: 1.81e-05
+  [7000/7813] (89.6%) - Loss: 1.7839, LR: 1.77e-05
+Number of events per file [760101]
+Number of events per file [760101]
+Number of events per file [760101]
+  Validation: [1000/5939] (16.8%)
+  Validation: [2000/5939] (33.7%)
+  Validation: [3000/5939] (50.5%)
+  Validation: [4000/5939] (67.4%)
+  Validation: [5000/5939] (84.2%)
+Number of events per file [760101]
+Epoch [12/20] Loss: 1.7775, Val Loss: 1.8008 , lr: 1.7274575140626318e-05
+Class Loss: 1.7775, Class Val Loss: 1.8008
+Gen Loss: 0.0000, Gen Val Loss: 0.0000
+Time taken for epoch 11 is 1191.2652575969696 sec
+
+Epoch 13/20 - Training:

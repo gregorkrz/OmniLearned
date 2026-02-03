@@ -1,0 +1,67 @@
+{
+  "os": "Linux-5.14.21-150500.55.97_13.0.78-cray_shasta_c-x86_64-with-glibc2.31",
+  "python": "CPython 3.12.12",
+  "startedAt": "2026-01-28T20:01:21.871798Z",
+  "args": [
+    "train",
+    "--output_dir",
+    "/global/cfs/cdirs/m3246/gregork/checkpoints/20260127_nested_split/l1",
+    "--save-tag",
+    "debug_M_L1",
+    "--dataset",
+    "minerva_1A",
+    "--path",
+    "/global/cfs/cdirs/m3246/gregork/Minerva/20260127_nested_split",
+    "--mode",
+    "regression",
+    "--regression-loss",
+    "l1",
+    "--batch",
+    "1",
+    "--epoch",
+    "20",
+    "--lr",
+    "5e-5",
+    "--size",
+    "small",
+    "--wd",
+    "0.1",
+    "--num-workers",
+    "1",
+    "--use-pid",
+    "--wandb"
+  ],
+  "program": "/global/homes/g/gregork/.conda/envs/omni/bin/omnilearned",
+  "git": {
+    "remote": "https://github.com/gregorkrz/OmniLearned",
+    "commit": "f98e7faf0b426ead095aad91db72eca3dc0f5cd9"
+  },
+  "email": "gregor.krzmanc@cern.ch",
+  "root": "/global/u2/g/gregork/OmniLearned",
+  "host": "login28",
+  "executable": "/global/homes/g/gregork/.conda/envs/omni/bin/python3.12",
+  "cpu_count": 128,
+  "cpu_count_logical": 256,
+  "gpu": "NVIDIA A100-PCIE-40GB",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "270030704640",
+      "used": "1607143424"
+    }
+  },
+  "memory": {
+    "total": "540061409280"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A100-PCIE-40GB",
+      "memoryTotal": "42949672960",
+      "cudaCores": 6912,
+      "architecture": "Ampere",
+      "uuid": "GPU-ed352c95-b826-2429-e7fa-df7c422053a1"
+    }
+  ],
+  "cudaVersion": "12.4",
+  "writerId": "d809hds3lvxp5s6725vrvi7okzq5lvw1"
+}

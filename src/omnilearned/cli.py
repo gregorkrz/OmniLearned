@@ -99,6 +99,8 @@ def train(
     feature_drop: float = typer.Option(0.0, help="Dropout for input features"),
     num_workers: int = typer.Option(16, help="Number of workers for data loading"),
     max_particles: int = typer.Option(150, help="Maximum number of particles per event"),
+    class_event_type: bool = typer.Option(False, help="Classify event type"),
+    class_current_type: bool = typer.Option(False, help="Classify current type"),
 ):
     run_training(
         outdir,
@@ -150,6 +152,8 @@ def train(
         regression_loss=regression_loss,
         regress_log=regress_log,
         max_particles=max_particles,
+        class_event_type=class_event_type,
+        class_current_type=class_current_type,
     )
 
 

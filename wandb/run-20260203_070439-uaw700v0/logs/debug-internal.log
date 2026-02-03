@@ -1,0 +1,11 @@
+{"time":"2026-02-03T07:04:40.1209093Z","level":"INFO","msg":"stream: starting","core version":"0.24.1"}
+{"time":"2026-02-03T07:04:40.439288443Z","level":"INFO","msg":"stream: created new stream","id":"uaw700v0"}
+{"time":"2026-02-03T07:04:40.439625455Z","level":"INFO","msg":"handler: started","stream_id":"uaw700v0"}
+{"time":"2026-02-03T07:04:40.447117075Z","level":"INFO","msg":"stream: started","id":"uaw700v0"}
+{"time":"2026-02-03T07:04:40.44715076Z","level":"INFO","msg":"sender: started","stream_id":"uaw700v0"}
+{"time":"2026-02-03T07:04:40.447152784Z","level":"INFO","msg":"writer: started","stream_id":"uaw700v0"}
+{"time":"2026-02-03T07:08:05.586771955Z","level":"INFO","msg":"stream: closing","id":"uaw700v0"}
+{"time":"2026-02-03T07:08:05.906258034Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-02-03T07:08:06.058095568Z","level":"INFO","msg":"handler: closed","stream_id":"uaw700v0"}
+{"time":"2026-02-03T07:08:06.061371298Z","level":"INFO","msg":"sender: closed","stream_id":"uaw700v0"}
+{"time":"2026-02-03T07:08:06.061595431Z","level":"INFO","msg":"stream: closed","id":"uaw700v0"}
