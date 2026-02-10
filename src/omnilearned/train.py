@@ -25,7 +25,6 @@ from omnilearned.utils import (
 
 import time
 import os
-import shutil
 import torch.amp as amp
 
 torch.set_float32_matmul_precision("high")
@@ -71,7 +70,7 @@ def train_step(
     data_iter = iter(dataloader)
     
     # Progress logging settings
-    log_interval = 1000  # Log every 1000 steps
+    log_interval = 100  # Log every 1000 steps
     running_loss = 0.0
     log_start_time = time.time()
     for batch_idx in range(iterations_per_epoch):
@@ -176,7 +175,7 @@ def val_step(
         iterations_per_epoch = len(dataloader)
 
     # Progress logging settings
-    log_interval = 1000  # Log every 1000 steps during validation
+    log_interval = 100  # Log every 1000 steps during validation
     log_start_time = time.time()
 
     data_iter = iter(dataloader)
@@ -620,27 +619,6 @@ def run(
     epoch_init = 0
     loss_init = np.inf
     checkpoint_name = None
-
-    # Handle pretrain_tag if it's a full path to a checkpoint file
-    if fine_tune and pretrain_tag and os.path.isfile(pretrain_tag):
-        if is_master_node():
-            print(f"Detected pretrain_tag as file path: {pretrain_tag}")
-            print(f"Copying checkpoint to output directory: {outdir}")
-            
-            # Copy the checkpoint file to the output directory
-            checkpoint_basename = os.path.basename(pretrain_tag)
-            dest_path = os.path.join(outdir, checkpoint_basename)
-            shutil.copy2(pretrain_tag, dest_path)
-            print(f"Copied {pretrain_tag} -> {dest_path}")
-            
-            # Extract the tag from the filename (remove "best_model_" prefix and ".pt" suffix)
-            if checkpoint_basename.startswith("best_model_") and checkpoint_basename.endswith(".pt"):
-                pretrain_tag = checkpoint_basename[11:-3]  # Remove "best_model_" and ".pt"
-            else:
-                # If it doesn't follow the expected naming convention, use the basename without extension
-                pretrain_tag = os.path.splitext(checkpoint_basename)[0]
-            
-            print(f"Using pretrain_tag: {pretrain_tag}")
 
     if os.path.isfile(os.path.join(outdir, get_checkpoint_name(save_tag))) and resuming:
         if is_master_node():

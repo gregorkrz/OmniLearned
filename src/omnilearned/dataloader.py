@@ -11,7 +11,7 @@ from pathlib import Path
 import torch._dynamo
 
 
-def collate_point_cloud(batch, max_part=5000):
+def collate_point_cloud(batch, max_part=33):
     """
     Collate function for point clouds and labels with truncation performed per batch.
 

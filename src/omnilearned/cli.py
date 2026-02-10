@@ -265,7 +265,8 @@ def evaluate(
     ),
     num_workers: int = typer.Option(16, help="Number of workers for data loading"),
     max_particles: int = typer.Option(150, help="Maximum number of particles per event"),
-
+    class_event_type: bool = typer.Option(False, help="Classify event type"),
+    class_current_type: bool = typer.Option(False, help="Classify current type"),
 ):
     run_evaluation(
         indir,
@@ -293,7 +294,9 @@ def evaluate(
         batch,
         num_workers,
         clip_inputs=clip_inputs,
-        max_particles=max_particles
+        max_particles=max_particles,
+        class_event_type=class_event_type,
+        class_current_type=class_current_type,
     )
 
 
