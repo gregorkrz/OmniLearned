@@ -119,7 +119,8 @@ class HEPTorchDataset(Dataset):
         nevts=-1,
         max_particles=150,
         task: Task = Task(),
-        concat_additional_info=True
+        concat_additional_info=True,
+        remove_pid_idx=True
     ):
         """
         Args:
@@ -135,6 +136,7 @@ class HEPTorchDataset(Dataset):
         self.use_pid = use_pid
         self.concat_additional_info = concat_additional_info
         self.folder = folder
+        self.remove_pid_idx = remove_pid_idx
         self.file_paths = sorted(list([os.path.join(folder, file) for file in os.listdir(folder) if file.endswith('.pb')]))
         print("Loading files into memory")
         self.files = [torch.load(file, weights_only=True, mmap=False) for file in self.file_paths]
@@ -213,17 +215,16 @@ class HEPTorchDataset(Dataset):
         
         if self.use_pid:
             sample["pid"] = data[:, self.pid_idx].int()
+            if self.remove_pid_idx:
+                data = torch.cat([data[:, :self.pid_idx], data[:, self.pid_idx+1:]], dim=1)
         #sample["data_additional_info"] = data_additional_info # shape (N, 5)
         if self.concat_additional_info: # concate data and data_additional_info into a single tensor
             sample["X"] = torch.cat([data, data_additional_info], dim=1) # shape (N, F+5)
         else:
-            sample["X"] = data
-            sample["add_info"] = data_additional_info
-        #else:
-        #    sample["data_additional_info"] = data_additional_info # shape (N, 5)
-        sample["attention_mask"] = valid_attention_mask
+            sample["X"] = data.float()
+            sample["add_info"] = data_additional_info.float()
+        sample["attention_mask"] = valid_attention_mask.float()
         return sample
-
 
 def load_data(
     dataset_name,

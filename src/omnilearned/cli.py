@@ -291,7 +291,7 @@ def evaluate(
     use_add: bool = typer.Option(
         False, help="Use additional features beyond kinematic information"
     ),
-    num_add: int = typer.Option(4, help="Number of additional features"),
+    num_add: int = typer.Option(5, help="Number of additional features"),
     use_event_loss: bool = typer.Option(
         False, help="Use additional classification loss between physics process"
     ),

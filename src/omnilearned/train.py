@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from omnilearned.network import PET2
-from omnilearned.dataloader import load_data
+from omnilearned.dataloader import load_data, Task
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from pytorch_optimizer import Lion
@@ -418,8 +418,7 @@ def run(
     regression_loss: str = "mse",
     regress_log: bool = True,
     max_particles: int = 150,
-    class_current_type: bool = False,
-    class_event_type: bool = False,
+    task: Task = None
 ):
     # Save all these settings into a json file in the output directory
     # - this is a bit bulky, but it's easy to add new settings later.
@@ -473,8 +472,7 @@ def run(
         "regression_loss": regression_loss,
         "regress_log": regress_log,
         "max_particles": max_particles,
-        "class_current_type": class_current_type,
-        "class_event_type": class_event_type,
+        "task": task.__dict__
     }
     json.dump(settings, open(os.path.join(outdir, "settings.json"), "w"))
     local_rank, rank, size = ddp_setup()
@@ -534,11 +532,10 @@ def run(
         rank=rank,
         size=size,
         clip_inputs=clip_inputs,
-        mode=mode,
         nevts=nevts,
         max_particles=max_particles,
-        classification_current=class_current_type,
-        classification_event_type=class_event_type
+        task=task,
+        concat_additional_info=False
     )
     if rank == 0:
         print("**** Setup ****")
@@ -559,9 +556,8 @@ def run(
         rank=rank,
         size=size,
         clip_inputs=clip_inputs,
-        mode=mode,
-        classification_current=class_current_type,
-        classification_event_type=class_event_type,
+        task=task,
+        concat_additional_info=False
     )
 
     param_groups = get_param_groups(
