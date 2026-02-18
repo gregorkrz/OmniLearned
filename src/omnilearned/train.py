@@ -256,6 +256,7 @@ def train_model(
     run=None,
     ema_model=None,
     ema_decay=0.999,
+    loss_log_interval=1000,
 ):
     checkpoint_name = get_checkpoint_name(save_tag)
 
@@ -269,6 +270,12 @@ def train_model(
         gscaler = amp.GradScaler()
     else:
         gscaler = None
+    train_steps_per_epoch = (
+        len(train_loader) if iterations_per_epoch < 0 else iterations_per_epoch
+    )
+    val_steps_per_eval = len(val_loader) if iterations_per_epoch < 0 else iterations_per_epoch
+    global_step = int(epoch_init) * train_steps_per_epoch
+
     for epoch in range(int(epoch_init), num_epochs):
         if isinstance(
             train_loader.sampler, torch.utils.data.distributed.DistributedSampler
@@ -277,84 +284,103 @@ def train_model(
 
         if is_master_node():
             print(f"\nEpoch {epoch + 1}/{num_epochs} - Training:")
-        
-        start = time.time()
-        train_logs = train_step(
-            model,
-            train_loader,
-            loss_class,
-            loss_gen,
-            optimizer,
-            lr_scheduler,
-            mode,
-            device,
-            use_clip=use_clip,
-            use_event_loss=use_event_loss,
-            iterations_per_epoch=iterations_per_epoch,
-            use_amp=use_amp,
-            gscaler=gscaler,
-            ema_model=ema_model,
-            ema_decay=ema_decay,
-        )
-        val_logs = val_step(
-            model,
-            val_loader,
-            loss_class,
-            loss_gen,
-            mode,
-            device,
-            use_clip=use_clip,
-            use_event_loss=use_event_loss,
-            iterations_per_epoch=iterations_per_epoch,
-        )
 
-        losses["train_loss"].append(train_logs["loss"])
-        losses["val_loss"].append(val_logs["loss"])
+        start = time.time()
+        epoch_steps_done = 0
+        while epoch_steps_done < train_steps_per_epoch:
+            steps_this_chunk = min(
+                loss_log_interval, train_steps_per_epoch - epoch_steps_done
+            )
+            train_logs = train_step(
+                model,
+                train_loader,
+                loss_class,
+                loss_gen,
+                optimizer,
+                lr_scheduler,
+                mode,
+                device,
+                use_clip=use_clip,
+                use_event_loss=use_event_loss,
+                iterations_per_epoch=steps_this_chunk,
+                use_amp=use_amp,
+                gscaler=gscaler,
+                ema_model=ema_model,
+                ema_decay=ema_decay,
+            )
+            epoch_steps_done += steps_this_chunk
+            global_step += steps_this_chunk
+
+            should_log = (
+                global_step % loss_log_interval == 0
+                or epoch_steps_done == train_steps_per_epoch
+            )
+            if not should_log:
+                continue
+
+            val_logs = val_step(
+                model,
+                val_loader,
+                loss_class,
+                loss_gen,
+                mode,
+                device,
+                use_clip=use_clip,
+                use_event_loss=use_event_loss,
+                iterations_per_epoch=val_steps_per_eval,
+            )
+
+            losses["train_loss"].append(train_logs["loss"])
+            losses["val_loss"].append(val_logs["loss"])
+
+            if is_master_node():
+                print(
+                    f"Step [{global_step}] Epoch [{epoch + 1}/{num_epochs}] "
+                    f"Loss: {train_logs['loss']:.4f}, Val Loss: {val_logs['loss']:.4f}, "
+                    f"lr: {lr_scheduler.get_last_lr()[0]}"
+                )
+                print(
+                    f"Class Loss: {train_logs['loss_class']:.4f}, Class Val Loss: {val_logs['loss_class']:.4f}"
+                )
+                if use_event_loss:
+                    print(
+                        f"Class Event Loss: {train_logs['loss_class_event']:.4f}, Class Event Val Loss: {val_logs['loss_class_event']:.4f}"
+                    )
+                print(
+                    f"Gen Loss: {train_logs['loss_gen']:.4f}, Gen Val Loss: {val_logs['loss_gen']:.4f}"
+                )
+                if use_clip:
+                    print(
+                        f"CLIP loss: {train_logs['loss_clip']:.4f}, CLIP Val Loss: {val_logs['loss_clip']:.4f}"
+                    )
+
+            if losses["val_loss"][-1] < tracker["bestValLoss"]:
+                tracker["bestValLoss"] = losses["val_loss"][-1]
+                tracker["bestEpoch"] = epoch
+
+                if is_master_node():
+                    print("replacing best checkpoint ...")
+                    save_checkpoint(
+                        model,
+                        ema_model,
+                        epoch + 1,
+                        optimizer,
+                        losses["val_loss"][-1],
+                        lr_scheduler,
+                        output_dir,
+                        checkpoint_name,
+                    )
+
+            if run is not None:
+                for key in train_logs:
+                    run.log({f"train {key}": train_logs[key]}, step=global_step)
+                for key in val_logs:
+                    run.log({f"val {key}": val_logs[key]}, step=global_step)
 
         if is_master_node():
             print(
-                f"Epoch [{epoch + 1}/{num_epochs}] Loss: {losses['train_loss'][-1]:.4f}, Val Loss: {losses['val_loss'][-1]:.4f} , lr: {lr_scheduler.get_last_lr()[0]}"
-            )
-            print(
-                f"Class Loss: {train_logs['loss_class']:.4f}, Class Val Loss: {val_logs['loss_class']:.4f}"
-            )
-            if use_event_loss:
-                print(
-                    f"Class Event Loss: {train_logs['loss_class_event']:.4f}, Class Event Val Loss: {val_logs['loss_class_event']:.4f}"
-                )
-            print(
-                f"Gen Loss: {train_logs['loss_gen']:.4f}, Gen Val Loss: {val_logs['loss_gen']:.4f}"
-            )
-            if use_clip:
-                print(
-                    f"CLIP loss: {train_logs['loss_clip']:.4f}, CLIP Val Loss: {val_logs['loss_clip']:.4f}"
-                )
-            print(
                 "Time taken for epoch {} is {} sec".format(epoch, time.time() - start)
             )
-
-        if losses["val_loss"][-1] < tracker["bestValLoss"]:
-            tracker["bestValLoss"] = losses["val_loss"][-1]
-            tracker["bestEpoch"] = epoch
-
-            if is_master_node():
-                print("replacing best checkpoint ...")
-                save_checkpoint(
-                    model,
-                    ema_model,
-                    epoch + 1,
-                    optimizer,
-                    losses["val_loss"][-1],
-                    lr_scheduler,
-                    output_dir,
-                    checkpoint_name,
-                )
-
-        if run is not None:
-            for key in train_logs:
-                run.log({f"train {key}": train_logs[key]})
-            for key in val_logs:
-                run.log({f"val {key}": val_logs[key]})
 
         if epoch - tracker["bestEpoch"] > patience:
             print(f"breaking on device: {device}")

@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from typing import Tuple
 from copy import deepcopy
+import socket
 import torch.distributed as dist
 from torch.distributed import init_process_group, get_rank
 import torch.nn.functional as F
@@ -158,7 +159,7 @@ class RegressionLoss(nn.Module):
     ):
         super().__init__()
         self.loss_type = loss_type.lower()
-        self.apply_log = apply_log
+        self.apply_log = False
         self.log_epsilon = log_epsilon
         self.reduction = reduction
         
@@ -190,6 +191,8 @@ class RegressionLoss(nn.Module):
             # Transform both predictions and targets to log space
             # Assumes both are in original (non-log) space
             targets_transformed = torch.log(targets + self.log_epsilon)
+            if torch.min(targets) < 0:
+                print("Min")
             #predictions_transformed = torch.log(predictions + self.log_epsilon)
             predictions_transformed = predictions
         else:
@@ -200,6 +203,12 @@ class RegressionLoss(nn.Module):
         
         # Compute loss
         loss = self.loss_fn(predictions_transformed, targets_transformed)
+        # check if there are nans in pred or targets
+        if torch.isnan(predictions_transformed).any() or torch.isnan(targets_transformed).any():
+            print("error in predictions_transformed or targets_transformed")
+            print("number of nans in predictions_transformed", torch.isnan(predictions_transformed).sum())
+            print("number of nans in targets_transformed", torch.isnan(targets_transformed).sum())
+            raise Exception("Error: nans in predictions_transformed or targets_transformed")
     
         return loss
 
@@ -301,10 +310,9 @@ def get_loss(
             loss_class = torch.mean(class_cost(y_pred, y))
             logs["loss_class"] += loss_class.detach()
         else:
-            counts = torch.bincount(y, minlength=outputs["y_pred"].shape[-1]).float()
-            class_weights = 1.0 / (counts + 1e-6)
-            weights = class_weights[y]
-            weights = weights / weights.mean()
+            # class_cost already carries global class weights; keep per-sample
+            # weighting neutral to avoid double reweighting.
+            weights = torch.ones_like(y, dtype=outputs["y_pred"].dtype)
 
             loss_class = get_class_loss(
                 weights, outputs["y_pred"], y, class_cost, use_event_loss, logs
@@ -624,6 +632,12 @@ def is_master_node():
         return True
 
 
+def _get_free_tcp_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("", 0))
+        return int(sock.getsockname()[1])
+
+
 def ddp_setup():
     """
     Args:
@@ -632,14 +646,19 @@ def ddp_setup():
     """
     if "MASTER_ADDR" not in os.environ:
         os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = "2900"
+    if "MASTER_PORT" not in os.environ:
+        os.environ["MASTER_PORT"] = str(_get_free_tcp_port())
+
+    if "RANK" not in os.environ:
         os.environ["RANK"] = "0"
+        os.environ["LOCAL_RANK"] = "0"
+        os.environ["WORLD_SIZE"] = "1"
         init_process_group(rank=0, world_size=1)
         rank = local_rank = 0
     else:
         init_process_group(init_method="env://")
         # overwrite variables with correct values from env
-        local_rank = int(os.environ["LOCAL_RANK"])
+        local_rank = int(os.environ.get("LOCAL_RANK", "0"))
         rank = get_rank()
 
     if torch.cuda.is_available():

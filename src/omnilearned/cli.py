@@ -133,14 +133,14 @@ def train(
     max_particles: int = typer.Option(150, help="Maximum number of particles per event"),
     class_current_type: bool = typer.Option(False, help="Classify current type"),
     class_pions: bool = typer.Option(False, help="Classify single pion"),
-    regress_energy_available: bool = typer.Option(False, help="Regress energy available"),
-    regress_energy_available_no_muon: bool = typer.Option(False, help="Regress energy available without muon"),
+    regress_E_available: bool = typer.Option(False, help="Regress energy available"),
+    regress_E_available_no_muon: bool = typer.Option(False, help="Regress energy available without muon"),
 ):
     args = SimpleNamespace(
         mode=mode,
         regress_log=True,
-        regress_energy_available=regress_energy_available,
-        regress_energy_available_no_muon=regress_energy_available_no_muon,
+        regress_E_available=regress_E_available,
+        regress_E_available_no_muon=regress_E_available_no_muon,
         classification_event_type=False,
         classification_current=class_current_type,
         classification_cc_1pi=False,
@@ -314,6 +314,7 @@ def evaluate(
     class_event_type: bool = typer.Option(False, help="Classify event type"),
     class_current_type: bool = typer.Option(False, help="Classify current type"),
 ):
+    num_classes = len(task.class_idx_map) if task.class_idx_map is not None else 2
     run_evaluation(
         indir,
         outdir,
