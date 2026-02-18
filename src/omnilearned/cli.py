@@ -1,16 +1,57 @@
 import typer
-
+from types import SimpleNamespace
 from omnilearned.train import run as run_training
 from omnilearned.evaluate import run as run_evaluation
-from omnilearned.dataloader import load_data
+from omnilearned.dataloader import load_data, Task
 from omnilearned.train_hl import run as run_training_hl
 from omnilearned.evaluate_hl import run as run_evaluation_hl
+
 
 app = typer.Typer(
     help="OmniLearned: A unified deep learning approach for particle physics",
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
 )
+
+
+def create_task(args):
+    if args.mode == "regression":
+        class_label_idx = None
+        class_idx = None
+        if args.regress_E_available:
+            class_label_idx = 8
+        elif args.regress_E_available_no_muon:
+            class_label_idx = 9
+        return Task(type="regression", regress_E_available=args.regress_E_available, regress_E_available_no_muon=args.regress_E_available_no_muon, class_label_idx=class_label_idx)
+    elif args.mode == "classifier":
+        if "classification_n_pions" not in args.__dict__:
+            args.classification_n_pions = False
+        if args.classification_event_type:
+            class_label_idx = 1
+            class_idx = [1, 2, 3, 4, 8]
+            class_idx_map = {1: 0, 2: 1, 3: 2, 4: 3, 8: 4}
+        elif args.classification_current:
+            class_label_idx = 3
+            class_idx = [1, 2]
+            class_idx_map = {1: 0, 2: 1}
+        elif args.classification_cc_1pi:
+            class_label_idx = 4
+            class_idx = [0, 1, 2]
+            class_idx_map = {0: 0, 1: 1, 2: 2}
+        elif args.classification_n_pions:
+            class_label_idx = 7
+            class_idx = [0, 1]
+            class_idx_map = {0: 0, 1: 1}
+        elif args.classification_CC1orNPi:
+            class_label_idx = -1
+            class_idx = [0, 1, 2, 3]
+            class_idx_map = {0: 0, 1: 1, 2: 2, 3: 3}
+        return Task(type="classifier", classification_event_type=args.classification_event_type, 
+            classification_current=args.classification_current, classification_cc_1pi=args.classification_cc_1pi,
+            classification_n_pions=args.classification_n_pions, class_idx=class_idx, class_idx_map=class_idx_map, class_label_idx=class_label_idx,
+            classification_CC1orNPi=args.classification_CC1orNPi)
+    else:
+        raise ValueError("Invalid mode")
 
 
 @app.command()
@@ -45,11 +86,11 @@ def train(
     num_cond: int = typer.Option(3, help="Number of global conditioning features"),
     use_pid: bool = typer.Option(False, help="Use particle ID for training"),
     pid_idx: int = typer.Option(4, help="Index of the PID in the input array"),
-    pid_dim: int = typer.Option(9, help="Number of unique PIDs"),
+    pid_dim: int = typer.Option(8, help="Number of unique PIDs"),
     use_add: bool = typer.Option(
-        False, help="Use additional features beyond kinematic information"
+        True, help="Use additional features beyond kinematic information"
     ),
-    num_add: int = typer.Option(4, help="Number of additional features"),
+    num_add: int = typer.Option(5, help="Number of additional features"),
     zero_add: bool = typer.Option(
         False,
         help="Load the model with additional blocks but zero the inputs from the dataloader",
@@ -58,20 +99,11 @@ def train(
     use_event_loss: bool = typer.Option(
         False, help="Use additional classification loss between physics process"
     ),
-    num_classes: int = typer.Option(
-        2, help="Number of classes in the classification task"
-    ),
-    num_gen_classes: int = typer.Option(
-        1, help="Number of classes in the particle classification task"
-    ),
     mode: str = typer.Option(
         "classifier", help="Task to run: classifier, generator, pretrain"
     ),
     regression_loss: str = typer.Option(
         "mse", help="Regression loss type: mse (L2), l1 (MAE), or huber"
-    ),
-    regress_log: bool = typer.Option(
-        False, help="Apply log transformation to targets for regression"
     ),
     # Training options
     batch: int = typer.Option(64, help="Batch size"),
@@ -99,9 +131,24 @@ def train(
     feature_drop: float = typer.Option(0.0, help="Dropout for input features"),
     num_workers: int = typer.Option(16, help="Number of workers for data loading"),
     max_particles: int = typer.Option(150, help="Maximum number of particles per event"),
-    class_event_type: bool = typer.Option(False, help="Classify event type"),
     class_current_type: bool = typer.Option(False, help="Classify current type"),
+    class_pions: bool = typer.Option(False, help="Classify single pion"),
+    regress_energy_available: bool = typer.Option(False, help="Regress energy available"),
+    regress_energy_available_no_muon: bool = typer.Option(False, help="Regress energy available without muon"),
 ):
+    args = SimpleNamespace(
+        mode=mode,
+        regress_log=True,
+        regress_energy_available=regress_energy_available,
+        regress_energy_available_no_muon=regress_energy_available_no_muon,
+        classification_event_type=False,
+        classification_current=class_current_type,
+        classification_cc_1pi=False,
+        classification_n_pions=False,
+        classification_CC1orNPi=class_pions,
+    )
+    task = create_task(args)
+    num_classes = len(task.class_idx_map) if task.class_idx_map is not None else 2
     run_training(
         outdir,
         save_tag,
@@ -129,7 +176,7 @@ def train(
         use_clip,
         use_event_loss,
         num_classes,
-        num_gen_classes,
+        2,
         mode,
         batch,
         iterations,
@@ -150,10 +197,9 @@ def train(
         num_workers,
         clip_inputs=clip_inputs,
         regression_loss=regression_loss,
-        regress_log=regress_log,
+        regress_log=True,
         max_particles=max_particles,
-        class_event_type=class_event_type,
-        class_current_type=class_current_type,
+        task=task
     )
 
 
@@ -264,7 +310,7 @@ def evaluate(
         False, help="Clip input dataset to be within R=0.8 and atl least 500 MeV"
     ),
     num_workers: int = typer.Option(16, help="Number of workers for data loading"),
-    max_particles: int = typer.Option(150, help="Maximum number of particles per event"),
+    max_particles: int = typer.Option(33, help="Maximum number of particles per event"),
     class_event_type: bool = typer.Option(False, help="Classify event type"),
     class_current_type: bool = typer.Option(False, help="Classify current type"),
 ):

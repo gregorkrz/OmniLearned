@@ -9,9 +9,25 @@ from urllib.parse import urljoin
 import numpy as np
 from pathlib import Path
 import torch._dynamo
+from dataclasses import dataclass, field
 
-
-def collate_point_cloud(batch, max_part=33):
+@dataclass
+class Task:
+    type: str = field(default="regression") # "regression" or "classifier"
+    regress_log: bool = field(default=True) # If True, it will apply log transformation to the regression target
+    classification_event_type: bool = field(default=False) # If True, it will classify the event type (1, 2, 3, 4, 7, 8)
+    classification_current: bool = field(default=False) # If True, it will classify the event current (1, 2)
+    classification_cc_1pi: bool = field(default=False) # If True, it will classify the event type [0, 1, 2]: 0=other, 1=CC pi+, 2=CC pi-
+    classification_n_pions: bool = field(default=False) # If True, it will classify whether the event is multi-pion or not (>1 pion produced)
+    classification_CC1orNPi: bool = field(default=False) # If True, it will classify CC 1pi or n pions, according to signal definition in Eberly et al. 2015
+    class_idx: list[int] = field(default=None) # List of class indices for the classification task # e.g. [1, 2, 3] means 3 classes: 1, 2, 3
+    class_idx_map: dict[int, int] = field(default=None) # Map of class indices to class labels
+    class_label_idx: int = field(default=None) # Index of the label in the truth_labels tensor for the classification task
+    class_weights: torch.Tensor = field(default=None) # Weights for the classification task
+    regress_E_available: bool = field(default=False) # If True, it will regress the available energy of the event
+    regress_E_available_no_muon: bool = field(default=False) # If True, it will regress the available energy of the event, without the muon energy
+    
+def collate_point_cloud(batch, max_particles=33):
     """
     Collate function for point clouds and labels with truncation performed per batch.
 
@@ -29,209 +45,67 @@ def collate_point_cloud(batch, max_part=33):
             - "y": (B, num_classes)
             - "cond", "pid", "add_info" (optional, shape (B, M, ...))
     """
-    batch_X = [item["X"] for item in batch]
+    def _pad_or_truncate(tensor, target_len):
+        if tensor.shape[0] == target_len:
+            return tensor
+        if tensor.shape[0] > target_len:
+            return tensor[:target_len]
+        pad_shape = (target_len - tensor.shape[0],) + tuple(tensor.shape[1:])
+        padding = tensor.new_zeros(pad_shape)
+        return torch.cat([tensor, padding], dim=0)
+
+    batch_X = [_pad_or_truncate(item["X"], max_particles) for item in batch]
     batch_y = [item["y"] for item in batch]
+    batch_attention_mask = [_pad_or_truncate(item["attention_mask"], max_particles) for item in batch]
+    #batch_additional_info = [_pad_or_truncate(item["data_additional_info"], max_particles) for item in batch]
 
-    # Stack once to avoid repeated slicing
-    point_clouds = torch.stack(batch_X)  # (B, N, F)
+    point_clouds = torch.stack(batch_X)  # (B, M, F)
     labels = torch.stack(batch_y)  # (B, num_classes)
-
-    # Use validity mask based on feature index 2
-    valid_mask = point_clouds[:, :, 2] != 0
-    max_particles = min(valid_mask.sum(dim=1).max().item(), max_part)
-    max_particles = point_clouds.shape[1]
-
-    # Truncate point clouds
-    truncated_X = point_clouds[:, :max_particles, :].contiguous()  # (B, M, F)
-    result = {"X": truncated_X, "y": labels}
+    attention_masks = torch.stack(batch_attention_mask)  # (B, M)
+    #additional_info = torch.stack(batch_additional_info) # (B, M, 5)
+    result = {"X": point_clouds, "y": labels, "attention_mask": attention_masks}#, "data_additional_info": additional_info}
 
     # Handle optional fields in a loop to reduce code duplication
     optional_fields = ["cond", "pid", "add_info", "data_pid", "vertex_pid"]
     for field in optional_fields:
-        if all(field in item for item in batch):
-            stacked = torch.stack([item[field] for item in batch])
-            # Truncate if it's sequence-like (i.e., has 2 or more dims)
-            if stacked.dim() >= 2 and stacked.shape[1] >= max_particles:
-                stacked = stacked[:, :max_particles].contiguous()
+        if all(field in item and item[field] is not None for item in batch):
+            values = [item[field] for item in batch]
+            # Pad per-particle optional tensors to max_particles before stacking.
+            is_particle_aligned = all(
+                torch.is_tensor(v) and v.dim() >= 1 and v.shape[0] == batch[i]["X"].shape[0]
+                for i, v in enumerate(values)
+            )
+            if is_particle_aligned:
+                values = [_pad_or_truncate(v, max_particles) for v in values]
+            stacked = torch.stack(values)
             result[field] = stacked
         else:
             result[field] = None
-
     return result
-
-
-def get_url(
-    dataset_name,
-    dataset_type,
-    base_url="https://portal.nersc.gov/cfs/dasrepo/omnilearned/",
-):
-    url = f"{base_url}/{dataset_name}/{dataset_type}/"
-    try:
-        requests.head(url, allow_redirects=True, timeout=5)
-        return url
-    except requests.RequestException:
-        print(
-            "ERROR: Request timed out, visit https://www.nersc.gov/users/status for status on  portal.nersc.gov"
-        )
-        return None
-
-
-def download_h5_files(base_url, destination_folder):
-    """
-    Downloads all .h5 files from the specified directory URL.
-
-    Args:
-        base_url (str): The base URL of the directory containing the .h5 files.
-        destination_folder (str): The local folder to save the downloaded files.
-    """
-
-    response = requests.get(base_url)
-    if response.status_code != 200:
-        print(f"Failed to access {base_url}")
-        return
-
-    file_links = re.findall(r'href="([^"]+\.h5)"', response.text)
-
-    for file_name in file_links:
-        file_url = urljoin(base_url, file_name)
-        file_path = os.path.join(destination_folder, file_name)
-
-        print(f"Downloading {file_url} to {file_path}")
-        with requests.get(file_url, stream=True) as r:
-            r.raise_for_status()
-            with open(file_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-        print(f"Downloaded {file_name}")
-
-
-class HEPDataset(Dataset):
-    def __init__(
-        self,
-        file_paths,
-        file_indices=None,
-        use_cond=False,
-        use_pid=False,
-        pid_idx=4,
-        use_add=False,
-        num_add=4,
-        label_shift=0,
-        clip_inputs=False,
-        mode="",
-        nevts=-1,
-        regress_log=False,
-    ):
-        """
-        Args:
-            file_paths (list): List of file paths.
-            use_pid (bool): Flag to select if PID information is used during training
-            use_add (bool): Flags to select if additional information besides kinematics are used
-            regress_log (bool): Apply log transformation to regression targets
-        """
-        self.use_cond = use_cond
-        self.regress_log = regress_log
-        self.use_pid = use_pid
-        self.use_add = use_add
-        self.pid_idx = pid_idx
-        self.num_add = num_add
-        self.label_shift = label_shift
-
-        self.file_paths = file_paths
-        self._file_cache = {}  # lazy cache for open h5py.File handles
-        self.file_indices = file_indices
-        self.clip_inputs = clip_inputs
-        self.mode = mode
-        self.nevts = int(nevts)
-        if self.nevts < 0:
-            self.nevts = len(self.file_indices)
-
-        # random.shuffle(self.file_indices)  # Shuffle data entries globally
-
-    def __len__(self):
-        return min(self.nevts, len(self.file_indices))
-
-    def _get_file(self, file_idx):
-        # Get the file handle from cache; open it if it’s not already open.
-        if file_idx not in self._file_cache:
-            file_path = self.file_paths[file_idx]
-            self._file_cache[file_idx] = h5py.File(file_path, "r")
-        return self._file_cache[file_idx]
-
-    def __getitem__(self, idx):
-        file_idx, sample_idx = self.file_indices[idx]
-        f = self._get_file(file_idx)
-
-        sample = {}
-
-        sample["X"] = torch.tensor(f["data"][sample_idx], dtype=torch.float32)
-        if self.clip_inputs:
-            # Enforce particles to be inside R=0.8 and pT > 0.5 MeV
-            mask_part = (torch.hypot(sample["X"][:, 0], sample["X"][:, 1]) < 0.8) & (
-                sample["X"][:, 2] > 0.0
-            )
-            sample["X"][:, 3] = np.clip(
-                sample["X"][:, 3], a_min=sample["X"][:, 2], a_max=None
-            )
-            sample["X"] = sample["X"] * mask_part.unsqueeze(-1).float()
-
-        label = f["pid"][sample_idx]
-
-        if self.mode == "regression":
-            pid_dtype = torch.float32
-        else:
-            pid_dtype = torch.int64
-
-        label_value = label - self.label_shift
-        if self.mode == "regression" and self.regress_log:
-            label_value = np.log(label_value + 1e-8)  # Add small epsilon to avoid log(0)
-        
-        sample["y"] = torch.tensor(label_value, dtype=pid_dtype)
-        if "global" in f and self.use_cond:
-            sample["cond"] = torch.tensor(f["global"][sample_idx], dtype=torch.float32)
-
-        if self.use_pid:
-            sample["pid"] = sample["X"][:, self.pid_idx].int()
-            sample["X"] = torch.cat(
-                (sample["X"][:, : self.pid_idx], sample["X"][:, self.pid_idx + 1 :]),
-                dim=1,
-            )
-        if self.use_add:
-            # Assume any additional info appears last
-            sample["add_info"] = sample["X"][:, -self.num_add :]
-            sample["X"] = sample["X"][:, : -self.num_add]
-
-        if self.mode in ["segmentation", "ftag"]:
-            if self.mode == "segmentation":
-                data_dtype = torch.float32
-            elif self.mode == "ftag":
-                data_dtype = torch.int64
-
-            sample["data_pid"] = torch.tensor(
-                f["data_pid"][sample_idx], dtype=data_dtype
-            )
-
-        return sample
-
-    def __del__(self):
-        # Clean up: close all cached file handles.
-        for f in self._file_cache.values():
-            try:
-                f.close()
-            except Exception as e:
-                print(f"Error closing file: {e}")
-
-
 
 def get_class_counts(class_idx, label_idx_to_class_idx, files_truth_labels, truth_labels_idx):
     n_class = len(class_idx)
     class_counts = np.zeros(n_class)
     for file_idx in range(len(files_truth_labels)):
         labels = files_truth_labels[file_idx][:, truth_labels_idx] # labels contain 1's and 2's, rewrite them into 0's and 1's based on class_idx indices of 1 and 2 in there
-        # 'rewrite' labels in a way 
         labels = np.array([label_idx_to_class_idx[int(label.item())] for label in labels])
         class_counts += np.bincount(labels, minlength=n_class)
     return class_counts
 
+def get_CC1orNPi_labels(file_truth_labels):
+    # Generate labels for CC 1pi or n pions, according to signal definition in Eberly et al. 2015, on the fly
+    is_cc = file_truth_labels[:, 3] == 1
+    n_pi_plus = file_truth_labels[:, 5]
+    n_pi_minus = file_truth_labels[:, 6]
+    labels = torch.zeros(len(file_truth_labels), dtype=torch.long)
+    one_pi_plus = n_pi_plus == 1
+    one_pi_minus = n_pi_minus == 1
+    multi_pions = (n_pi_plus + n_pi_minus) > 1
+    labels[is_cc & one_pi_plus & ~one_pi_minus] = 0 # CC 1pi+
+    labels[is_cc & one_pi_minus & ~one_pi_plus] = 1 # CC 1pi-
+    labels[is_cc & multi_pions] = 2 # CC N Pi +-
+    labels[~is_cc] = 3 # OTHER
+    return labels
 
 class HEPTorchDataset(Dataset):
     def __init__(
@@ -242,13 +116,10 @@ class HEPTorchDataset(Dataset):
         use_pid=True,
         use_add=False,
         num_add=4,
-        mode="",
         nevts=-1,
         max_particles=150,
-        classes=None,
-        regress_log=False,
-        classification_event_type=False, #  if True, it will classify the event type (1, 2, 3, 4, 7, 8)
-        classification_current=False # if True, it will classify the event current (1, 2)
+        task: Task = Task(),
+        concat_additional_info=True
     ):
         """
         Args:
@@ -262,35 +133,36 @@ class HEPTorchDataset(Dataset):
         self.num_add = num_add
         self.pid_idx = pid_idx
         self.use_pid = use_pid
+        self.concat_additional_info = concat_additional_info
         self.folder = folder
-        self.regress_log = regress_log
         self.file_paths = sorted(list([os.path.join(folder, file) for file in os.listdir(folder) if file.endswith('.pb')]))
-        self.files = [torch.load(file, weights_only=True, mmap=True) for file in self.file_paths]
+        print("Loading files into memory")
+        self.files = [torch.load(file, weights_only=True, mmap=False) for file in self.file_paths]
+        print("Files loaded into memory")
         self.files_n_events = np.array([len(file["data"].offsets())-1 for file in self.files]) # -1 because the last offset is the total number of events
         self.files_n_events_sum = np.cumsum(self.files_n_events)
         self.files_values = [file["data"].values() for file in self.files]
         self.files_offsets = [file["data"].offsets() for file in self.files]
+        self.files_values_additional_info = [file["data_additional_info"].values() for file in self.files]
+        self.files_offsets_additional_info = [file["data_additional_info"].offsets() for file in self.files]
         # truth_labels and global_features are regular tensors, not nested
         self.files_truth_labels = [file["truth_labels"] for file in self.files]
+        # add a column with CC1orNPi labels
+        if task.classification_CC1orNPi:
+            self.files_truth_labels = [np.concatenate([file_truth_labels, get_CC1orNPi_labels(file_truth_labels).reshape(-1, 1)], axis=1) for file_truth_labels in self.files_truth_labels]
         self.files_global_features = [file["global_features"] for file in self.files]
-        self.mode = mode
         self.nevts = int(nevts)
         self.max_particles = max_particles
-        self.classification_event_type = classification_event_type
-        self.classification_current = classification_current
-        if classification_event_type:
-            self.class_idx = np.array([1, 2, 3, 4, 8]) # 5 classes for the classification task; TODO: make more flexible
-            self.class_idx_map = {1: 0, 2: 1, 3: 2, 4: 3, 8: 4}
-            # Estimate the class weights
-            self.class_counts = get_class_counts(self.class_idx, self.class_idx_map, self.files_truth_labels, 1)
+        self.task = task
+        if self.task.type == "classifier":
+            self.class_counts = get_class_counts(self.task.class_idx, self.task.class_idx_map, self.files_truth_labels, self.task.class_label_idx)
             self.class_weights = 1 / (self.class_counts / np.sum(self.class_counts))
-        elif classification_current:
-            self.class_idx = np.array([1, 2])
-            self.class_idx_map = {1: 0, 2: 1}
-            self.class_counts = get_class_counts(self.class_idx, self.class_idx_map, self.files_truth_labels, -1)
-            self.class_weights = 1 / (self.class_counts / np.sum(self.class_counts))
-        elif mode == "classification":
-            raise ValueError("Invalid classification task")
+            print("Class weights", self.class_weights)
+        elif self.task.type == "regression":
+            self.regress_log = self.task.regress_log
+            print("Regressing log!")
+        else:
+            raise ValueError("Invalid task type")
 
     def __len__(self):
         if self.nevts > 0:
@@ -306,39 +178,34 @@ class HEPTorchDataset(Dataset):
             sample_idx = idx
         
         data = self.files_values[file_idx][self.files_offsets[file_idx][sample_idx]:self.files_offsets[file_idx][sample_idx+1]]
+        data_additional_info = self.files_values_additional_info[file_idx][self.files_offsets_additional_info[file_idx][sample_idx]:self.files_offsets_additional_info[file_idx][sample_idx+1]]
+        valid_attention_mask = torch.ones(data.shape[0], dtype=data.dtype)
         
         # pad up to max_particles
-        if data.shape[0] < self.max_particles:
-            data = torch.cat([data, torch.zeros(self.max_particles - data.shape[0], data.shape[1])], dim=0)
-        else:
-            data_log_E = data[:, 3]  # log(E) is at index 3 (0:eta, 1:phi, 2:log_pt, 3:log_E, 4:pid)
-            # sort by log(E) and keep only the max_particles
-            data_log_E_idx = torch.argsort(data_log_E, descending=True)
-            data = data[data_log_E_idx[:self.max_particles]]
-        
+        #if data.shape[0] <= self.max_particles:
+        #    valid_attention_mask = torch.ones(data.shape[0])
+        #    n_padding = self.max_particles - data.shape[0]
+        #    data = torch.cat([data, torch.zeros(n_padding, data.shape[1])], dim=0)
+        #    data_additional_info = torch.cat([data_additional_info, torch.zeros(n_padding, data_additional_info.shape[1])], dim=0)
+        #    valid_attention_mask = torch.cat([valid_attention_mask, torch.zeros(n_padding)], dim=0)
+        #else:
+        #    raise ValueError("Data has more particles than max_particles")
         sample = {}
-
         # Handle labels
-        if self.mode == "classifier":
-            if self.classification_event_type:
-                i = 1
-            elif self.classification_current:
-                i = -1
-            else:
-                raise ValueError("Invalid classification task")
+        if self.task.type == "classifier":
+            i = self.task.class_label_idx
             label = self.files_truth_labels[file_idx][sample_idx, i]
             label_int = int(label.item()) if torch.is_tensor(label) else int(label)
-            sample["y"] = torch.tensor(self.class_idx_map[label_int], dtype=torch.long)
-        elif self.mode == "regression":
-            label = self.files_truth_labels[file_idx][sample_idx, 0] / 1000.0 # regression target: Enu in GeV (TODO: change to a better quantity to regress)
+            sample["y"] = torch.tensor(self.task.class_idx_map[label_int], dtype=torch.long)
+        elif self.task.type == "regression":
+            regression_label_idx = 0
+            if self.task.regress_E_available or self.task.regress_E_available_no_muon:
+                regression_label_idx = self.task.class_label_idx
+            label = torch.log(self.files_truth_labels[file_idx][sample_idx, regression_label_idx] / 1000.0 + 1e-6) if self.task.regress_log else self.files_truth_labels[file_idx][sample_idx, regression_label_idx] / 1000.0
             label_val = label.item() if torch.is_tensor(label) else label
-            #if self.regress_log:
-            #    label_val = np.log(label_val + 1e-8)  # Add small epsilon to avoid log(0)
             sample["y"] = torch.tensor(label_val, dtype=torch.float32)
         else:
-            # Default: return first truth label
-            label = self.files_truth_labels[file_idx][sample_idx, 0]
-            sample["y"] = label.clone().detach().float() if torch.is_tensor(label) else torch.tensor(label, dtype=torch.float32)
+            raise ValueError("Invalid task type")
         
         if self.use_cond: # Use global features
             cond = self.files_global_features[file_idx][sample_idx]
@@ -346,12 +213,17 @@ class HEPTorchDataset(Dataset):
         
         if self.use_pid:
             sample["pid"] = data[:, self.pid_idx].int()
-            data = torch.cat(
-                (data[:, : self.pid_idx], data[:, self.pid_idx + 1 :]),
-                dim=1,
-            )
-        sample["X"] = data
+        #sample["data_additional_info"] = data_additional_info # shape (N, 5)
+        if self.concat_additional_info: # concate data and data_additional_info into a single tensor
+            sample["X"] = torch.cat([data, data_additional_info], dim=1) # shape (N, F+5)
+        else:
+            sample["X"] = data
+            sample["add_info"] = data_additional_info
+        #else:
+        #    sample["data_additional_info"] = data_additional_info # shape (N, 5)
+        sample["attention_mask"] = valid_attention_mask
         return sample
+
 
 def load_data(
     dataset_name,
@@ -368,59 +240,21 @@ def load_data(
     rank=0,
     size=1,
     clip_inputs=False,
-    mode="",
     shuffle=True,
     nevts=-1,
-    regress_log=False,
-    max_particles=150,
-    classification_event_type=False,
-    classification_current=False,
+    max_particles=33,
+    task: Task = Task(),
+    concat_additional_info=True
 ):
-    supported_datasets = [
-        "top",
-        "qg",
-        "pretrain",
-        "atlas",
-        "aspen",
-        "jetclass",
-        "jetclass2",
-        "h1",
-        "toy",
-        "cms_qcd",
-        "cms_bsm",
-        "cms_top",
-        "aspen_bsm",
-        "aspen_bsm_ad_sb",
-        "aspen_bsm_ad_sr",
-        "aspen_top_ad_sb",
-        "aspen_top_ad_sr",
-        "aspen_top_ad_sr_hl",
-        "qcd_dijet",
-        "jetnet150",
-        "jetnet30",
-        "dctr",
-        "atlas_flav",
-        "custom",
-        "camels",
-        "quijote",
-        "microboone",
-        "aspen_bsm_ad_sb",
-        "aspen_bsm_ad_sr",
-        "aspen_bsm_ad_sr_hl"
-    ]
-    supported_MINERVA_datasets = "minerva_1A", "minerva_1B", "minerva_1C", "minerva_1D", "minerva_1E", "minerva_1F", "minerva_1G", "minerva_1L", "minerva_1M", "minerva_1N", "minerva_1O", "minerva_1P"
-    supported_datasets.extend(supported_MINERVA_datasets)
+    supported_datasets = ["minerva_1A", "minerva_1B", "minerva_1C", "minerva_1D", "minerva_1E", "minerva_1F",
+    "minerva_1G", "minerva_1L", "minerva_1M", "minerva_1N", "minerva_1O", "minerva_1P"]
     if dataset_name not in supported_datasets:
         raise ValueError(
             f"Dataset '{dataset_name}' not supported. Choose from {supported_datasets}."
         )
-
-    # Special handling for MINERvA dataset with nested tensor format (.pb files)
-    if dataset_name in supported_MINERVA_datasets:
-        # playlist is 1A etc.
+    if dataset_name in supported_datasets:
         dataset_playlist = dataset_name.split("_")[1]
         dataset_path = Path(path) / dataset_playlist / dataset_type
-    
         data = HEPTorchDataset(
             folder=str(dataset_path),
             use_cond=use_cond,
@@ -428,14 +262,11 @@ def load_data(
             pid_idx=pid_idx,
             use_add=use_add,
             num_add=num_add,
-            mode=mode,
             nevts=nevts,
-            regress_log=regress_log,
             max_particles=max_particles,
-            classification_event_type=classification_event_type,
-            classification_current=classification_current,
+            task=task,
+            concat_additional_info=concat_additional_info
         )
-        
         loader = DataLoader(
             data,
             batch_size=batch,
@@ -444,119 +275,13 @@ def load_data(
             sampler=None,
             num_workers=num_workers,
             drop_last=False,
-            collate_fn=collate_point_cloud,
+            collate_fn=lambda x: collate_point_cloud(x, max_particles=max_particles),
+            prefetch_factor=2 if distributed else None,
+            persistent_workers=distributed
         )
-        return loader, data.class_weights if hasattr(data, "class_weights") else None
-
-    if dataset_name == "pretrain":
-        names = ["atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"]
-        types = [dataset_type]
-    else:
-        names = [dataset_name]
-        types = [dataset_type]
-
-    dataset_paths = [os.path.join(path, name, type) for name in names for type in types]
-
-    file_list = []
-    file_indices = []
-    index_shift = 0
-    for iname, dataset_path in enumerate(dataset_paths):
-        dataset_path = Path(dataset_path)
-        dataset_path.mkdir(parents=True, exist_ok=True)
-
-        if not any(dataset_path.iterdir()):
-            print(f"Fetching download url for dataset {names[iname]}")
-            url = get_url(names[iname], dataset_type)
-            if url is None:
-                raise ValueError(f"No download URL found for dataset '{dataset_name}'.")
-            download_h5_files(url, dataset_path)
-
-        h5_files = list(dataset_path.glob("*.h5")) + list(dataset_path.glob("*.hdf5"))
-        file_list.extend(map(str, h5_files))  # Convert to string paths
-
-        index_file = dataset_path / "file_index.npy"
-        if index_file.is_file():
-            if shuffle:
-                indices = np.load(index_file, mmap_mode="r")[rank::size]
-            else:
-                indices = np.load(index_file, mmap_mode="r")[
-                    len(np.load(index_file, mmap_mode="r")) * rank // size : len(
-                        np.load(index_file, mmap_mode="r")
-                    )
-                    * (rank + 1)
-                    // size
-                ]
-            file_indices.extend(
-                (file_idx + index_shift, sample_idx) for file_idx, sample_idx in indices
-            )
-            index_shift += len(h5_files)
-
+        if task.type == "classifier":
+            return loader, data.class_weights
         else:
-            print(f"Creating index list for dataset {names[iname]}")
-            file_indices = []
-            # Precompute indices for efficient access
-            for file_idx, path in enumerate(h5_files):
-                try:
-                    with h5py.File(path, "r") as f:
-                        num_samples = len(f["data"])
-                        file_indices.extend([(file_idx, i) for i in range(num_samples)])
-                except Exception as e:
-                    print(f"ERROR: File {path} is likely corrupted: {e}")
-            np.save(index_file, np.array(file_indices, dtype=np.int32))
-            print(f"Number of events: {len(file_indices)}")
-
-    # Shift labels if they are not used for pretrain
-    label_shift = {
-        "jetclass": 2,
-        "jetclass2": 12,
-        "aspen": 200,
-        "cms_qcd": 201,
-        "cms_bsm": 202,
-    }
-
-    data = HEPDataset(
-        file_list,
-        file_indices,
-        use_cond=use_cond,
-        use_pid=use_pid,
-        pid_idx=pid_idx,
-        use_add=use_add,
-        num_add=num_add,
-        label_shift=label_shift.get(dataset_name, 0),
-        clip_inputs=clip_inputs,
-        mode=mode,
-        nevts=nevts,
-        regress_log=regress_log,
-    )
-
-    loader = DataLoader(
-        data,
-        batch_size=batch,
-        pin_memory=torch.cuda.is_available(),
-        shuffle=shuffle,
-        sampler=None,
-        num_workers=num_workers,
-        drop_last=False,
-        collate_fn=collate_point_cloud,
-    )
-    return loader
-
-
-if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument(
-        "-d",
-        "--dataset",
-        default="top",
-        help="Dataset name to download",
-    )
-    parser.add_argument(
-        "-f",
-        "--folder",
-        default="./",
-        help="Folder to save the dataset",
-    )
-    args = parser.parse_args()
-
-    for tag in ["train", "test", "val"]:
-        load_data(args.dataset, args.folder, dataset_type=tag, distributed=False)
+            return loader, None
+    else:
+        raise ValueError(f"Dataset '{dataset_name}' not supported. Choose from {supported_datasets}.")

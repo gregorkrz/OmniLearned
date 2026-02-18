@@ -416,7 +416,7 @@ def run(
     num_workers: int = 16,
     clip_inputs: bool = False,
     regression_loss: str = "mse",
-    regress_log: bool = False,
+    regress_log: bool = True,
     max_particles: int = 150,
     class_current_type: bool = False,
     class_event_type: bool = False,
@@ -677,7 +677,7 @@ def run(
         # Note: apply_log=False because dataloader already applies log transformation when regress_log=True
         loss_class = RegressionLoss(
             loss_type=regression_loss,
-            apply_log=regress_log,  # Log transformation handled by dataloader
+            apply_log=True,  # Log transformation is always applied
             log_epsilon=1e-6,
             reduction="none"
         )
