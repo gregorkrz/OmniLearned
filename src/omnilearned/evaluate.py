@@ -1,6 +1,6 @@
 import torch
 from omnilearned.network import PET2
-from omnilearned.dataloader import load_data
+from omnilearned.dataloader import load_data, Task
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from omnilearned.utils import (
@@ -19,7 +19,6 @@ from tqdm.auto import tqdm
 
 # seed_value = 30  # You can choose any integer as your seed
 # torch.manual_seed(seed_value)
-
 
 def eval_model(
     model,
@@ -149,6 +148,7 @@ def run(
     num_cond: int = 3,
     use_pid: bool = False,
     pid_idx: int = -1,
+    pid_dim: int = 9,
     use_add: bool = False,
     num_add: int = 4,
     use_event_loss: bool = False,
@@ -159,10 +159,12 @@ def run(
     num_workers: int = 16,
     clip_inputs: bool = False,
     max_particles: int = 150,
-    class_event_type: bool = False,
-    class_current_type: bool = False,
+    task: Task = None,
 ):
     local_rank, rank, size = ddp_setup()
+
+    if task is None:
+        raise ValueError("Task is required")
 
     # For regression, we need num_classes=1 (single output value)
     if mode == "regression" and num_classes != 1:
@@ -181,6 +183,7 @@ def run(
         conditional=conditional,
         cond_dim=num_cond,
         pid=use_pid,
+        pid_dim=pid_dim,
         add_info=use_add,
         add_dim=num_add,
         mode=mode,
@@ -205,7 +208,7 @@ def run(
     test_loader, test_class_weights = load_data(
         dataset,
         dataset_type="test",
-        use_cond=True,
+        use_cond=conditional,
         use_pid=use_pid,
         pid_idx=pid_idx,
         use_add=use_add,
@@ -216,11 +219,10 @@ def run(
         rank=rank,
         size=size,
         clip_inputs=clip_inputs,
-        mode=mode,
         shuffle=False,
         max_particles=max_particles,
-        classification_event_type=class_event_type,
-        classification_current=class_current_type,
+        task=task,
+        concat_additional_info=False,
     )
     if rank == 0:
         print("**** Setup ****")

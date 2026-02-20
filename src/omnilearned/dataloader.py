@@ -156,6 +156,13 @@ class HEPTorchDataset(Dataset):
         self.nevts = int(nevts)
         self.max_particles = max_particles
         self.task = task
+        if self.task.class_idx_map is not None:
+            # When loaded from JSON, dict keys are strings; normalize to ints.
+            self.task.class_idx_map = {
+                int(k): int(v) for k, v in self.task.class_idx_map.items()
+            }
+        if self.task.class_idx is not None:
+            self.task.class_idx = [int(c) for c in self.task.class_idx]
         if self.task.type == "classifier":
             self.class_counts = get_class_counts(self.task.class_idx, self.task.class_idx_map, self.files_truth_labels, self.task.class_label_idx)
             self.class_weights = 1 / (self.class_counts / np.sum(self.class_counts))

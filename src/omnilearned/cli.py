@@ -1,4 +1,6 @@
 import typer
+import json
+import os
 from types import SimpleNamespace
 from omnilearned.train import run as run_training
 from omnilearned.evaluate import run as run_evaluation
@@ -12,7 +14,7 @@ app = typer.Typer(
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
 )
-
+# export CKPT_DIR=/global/cfs/cdirs/m3246/gregork/checkpoints
 
 def create_task(args):
     if args.mode == "regression":
@@ -204,182 +206,55 @@ def train(
 
 
 @app.command()
-def train_hl(
-    # General Options
-    outdir: str = typer.Option(
-        "", "--output_dir", "-o", help="Directory to output best model"
-    ),
-    save_tag: str = typer.Option("", help="Extra tag for checkpoint model"),
-    dataset: str = typer.Option("top", help="Dataset to load"),
-    path: str = typer.Option("/pscratch/sd/v/vmikuni/datasets", help="Dataset path"),
-    wandb: bool = typer.Option(False, help="use wandb logging"),
-    resuming: bool = typer.Option(False, help="Resume training"),
-    # Model Options
-    num_feat: int = typer.Option(
-        3,
-        help="Number of input kinematic features (not considering PID or additional features)",
-    ),
-    conditional: bool = typer.Option(False, help="Use global conditional features"),
-    num_cond: int = typer.Option(1, help="Number of global conditioning features"),
-    # Training options
-    batch: int = typer.Option(64, help="Batch size"),
-    iterations: int = typer.Option(-1, help="Number of iterations per pass"),
-    epoch: int = typer.Option(10, help="Number of epochs"),
-    warmup_epoch: int = typer.Option(0, help="Number of learning rate warmup epochs"),
-    # Optimizer
-    optim: str = typer.Option("lion", help="optimizer to use"),
-    b1: float = typer.Option(0.95, help="Lion b1"),
-    b2: float = typer.Option(0.98, help="Lion b2"),
-    lr: float = typer.Option(5e-5, help="Learning rate"),
-    wd: float = typer.Option(0.0, help="Weight decay"),
-    # Model
-    mlp_drop: float = typer.Option(0.0, help="Dropout for mlp layers"),
-    num_workers: int = typer.Option(16, help="Number of workers for data loading"),
-):
-    run_training_hl(
-        outdir,
-        save_tag,
-        dataset,
-        path,
-        wandb,
-        resuming,
-        num_feat,
-        conditional,
-        num_cond,
-        batch,
-        iterations,
-        epoch,
-        warmup_epoch,
-        optim,
-        b1,
-        b2,
-        lr,
-        wd,
-        mlp_drop,
-    )
-
-
-@app.command()
 def evaluate(
-    # General Options
     indir: str = typer.Option(
         "", "--input_dir", "-i", help="Directory to input best model"
     ),
     outdir: str = typer.Option(
         "", "--output_dir", "-o", help="Directory to output evaluation results"
     ),
-    save_tag: str = typer.Option("", help="Extra tag for checkpoint model"),
-    dataset: str = typer.Option("top", help="Dataset to load"),
-    path: str = typer.Option("/pscratch/sd/v/vmikuni/datasets", help="Dataset path"),
-    # Model Options
-    num_feat: int = typer.Option(
-        4,
-        help="Number of input kinematic features (not considering PID or additional features)",
-    ),
-    size: str = typer.Option("small", "--size", "-s", help="Model size"),
-    interaction: bool = typer.Option(False, help="Use interaction matrix"),
-    local_interaction: bool = typer.Option(False, help="Use local interaction matrix"),
-    num_coord: int = typer.Option(
-        2, help="Number of features for distance calculation"
-    ),
-    K: int = typer.Option(10, help="Number of k-neighbors"),
-    interaction_type: str = typer.Option("lhc", help="Type of interaction"),
-    conditional: bool = typer.Option(False, help="Use global conditional features"),
-    num_cond: int = typer.Option(3, help="Number of global conditioning features"),
-    use_pid: bool = typer.Option(False, help="Use particle ID for training"),
-    pid_idx: int = typer.Option(4, help="Index of the PID in the input array"),
-    use_add: bool = typer.Option(
-        False, help="Use additional features beyond kinematic information"
-    ),
-    num_add: int = typer.Option(5, help="Number of additional features"),
-    use_event_loss: bool = typer.Option(
-        False, help="Use additional classification loss between physics process"
-    ),
-    num_classes: int = typer.Option(
-        2, help="Number of classes in the classification task"
-    ),
-    num_gen_classes: int = typer.Option(
-        1, help="Number of classes in the particle segmentation task"
-    ),
-    mode: str = typer.Option(
-        "classifier", help="Task to run: classifier, generator, pretrain"
-    ),
-    # Training options
-    batch: int = typer.Option(128, help="Batch size"),
-    clip_inputs: bool = typer.Option(
-        False, help="Clip input dataset to be within R=0.8 and atl least 500 MeV"
-    ),
-    num_workers: int = typer.Option(16, help="Number of workers for data loading"),
-    max_particles: int = typer.Option(33, help="Maximum number of particles per event"),
-    class_event_type: bool = typer.Option(False, help="Classify event type"),
-    class_current_type: bool = typer.Option(False, help="Classify current type"),
 ):
-    num_classes = len(task.class_idx_map) if task.class_idx_map is not None else 2
+    if not outdir:
+        outdir = os.path.join(indir, "test_results")
+
+    settings = json.load(open(f"{indir}/settings.json", "r"))
+    task = Task(**settings["task"])
+    num_classes = (
+        len(task.class_idx_map)
+        if task.class_idx_map is not None
+        else settings.get("num_classes", 2)
+    )
     run_evaluation(
         indir,
         outdir,
-        save_tag,
-        dataset,
-        path,
-        num_feat,
-        size,
-        interaction,
-        local_interaction,
-        num_coord,
-        K,
-        interaction_type,
-        conditional,
-        num_cond,
-        use_pid,
-        pid_idx,
-        use_add,
-        num_add,
-        use_event_loss,
+        settings.get("save_tag", ""),
+        settings["dataset"],
+        settings["path"],
+        settings["num_feat"],
+        settings["model_size"],
+        settings["interaction"],
+        settings["local_interaction"],
+        settings["num_coord"],
+        settings["K"],
+        settings["interaction_type"],
+        settings["conditional"],
+        settings["num_cond"],
+        settings["use_pid"],
+        settings["pid_idx"],
+        settings.get("pid_dim", 9),
+        settings["use_add"],
+        settings["num_add"],
+        settings["use_event_loss"],
         num_classes,
-        num_gen_classes,
-        mode,
-        batch,
-        num_workers,
-        clip_inputs=clip_inputs,
-        max_particles=max_particles,
-        class_event_type=class_event_type,
-        class_current_type=class_current_type,
+        settings.get("num_gen_classes", 1),
+        settings["mode"],
+        settings["batch"],
+        settings["num_workers"],
+        clip_inputs=settings.get("clip_inputs", False),
+        max_particles=settings.get("max_particles", 150),
+        task=task,
     )
 
-
-@app.command()
-def evaluate_hl(
-    # General Options
-    indir: str = typer.Option(
-        "", "--input_dir", "-i", help="Directory to input best model"
-    ),
-    outdir: str = typer.Option("", "--output_dir", "-o", help="Output saved files"),
-    save_tag: str = typer.Option("", help="Extra tag for checkpoint model"),
-    dataset: str = typer.Option("top", help="Dataset to load"),
-    path: str = typer.Option("/pscratch/sd/v/vmikuni/datasets", help="Dataset path"),
-    # Model Options
-    num_feat: int = typer.Option(
-        3,
-        help="Number of input kinematic features (not considering PID or additional features)",
-    ),
-    conditional: bool = typer.Option(False, help="Use global conditional features"),
-    num_cond: int = typer.Option(3, help="Number of global conditioning features"),
-    # Training options
-    batch: int = typer.Option(128, help="Batch size"),
-    num_workers: int = typer.Option(16, help="Number of workers for data loading"),
-):
-    run_evaluation_hl(
-        indir,
-        outdir,
-        save_tag,
-        dataset,
-        path,
-        num_feat,
-        conditional,
-        num_cond,
-        batch,
-        num_workers,
-    )
 
 
 @app.command()
