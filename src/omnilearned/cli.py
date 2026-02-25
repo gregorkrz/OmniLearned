@@ -214,6 +214,7 @@ def train(
         lr_factor,
         wd,
         nevts,
+        event_sampler_random_state,
         attn_drop,
         mlp_drop,
         feature_drop,
@@ -223,7 +224,6 @@ def train(
         max_particles=max_particles,
         task=task,
         weight_loss=weight_loss,
-        event_sampler_random_state=event_sampler_random_state,
     )
 
 

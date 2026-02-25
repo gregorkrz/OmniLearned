@@ -26,7 +26,8 @@ class Task:
     class_weights: torch.Tensor = field(default=None) # Weights for the classification task
     regress_E_available: bool = field(default=False) # If True, it will regress the available energy of the event
     regress_E_available_no_muon: bool = field(default=False) # If True, it will regress the available energy of the event, without the muon energy
-    
+
+
 def collate_point_cloud(batch, max_particles=33):
     """
     Collate function for point clouds and labels with truncation performed per batch.

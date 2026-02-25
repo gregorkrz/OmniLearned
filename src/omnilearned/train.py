@@ -401,6 +401,15 @@ def train_model(
         json.dump(losses, open(f"{output_dir}/training_{save_tag}.json", "w"))
 
 
+def make_log_loss(criterion):
+    eps = 1e-6
+    def loss(pred, target, step=0):
+        pred_mask = (pred >= 0).float()
+        return criterion(torch.log(pred_mask*pred+eps), torch.log(target+eps)).mean()
+    return loss
+
+
+
 def run(
     outdir: str = "",
     save_tag: str = "",
@@ -709,11 +718,16 @@ def run(
     if mode == "regression":
         loss_class = RegressionLoss(
             loss_type=regression_loss,
-            apply_log=task.regress_log,
+            apply_log=False,
             log_epsilon=1e-6,
             reduction="none",
             weighted=weight_loss,
         )
+        if task.regress_log:
+            print("Regressing log!")
+            loss_class = make_log_loss(loss_class)
+        else:
+            print("NOT regressing log")
     else:
         weights = torch.tensor(train_class_weights).float()
         weights= weights.to(device)
