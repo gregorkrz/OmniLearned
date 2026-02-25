@@ -1,7 +1,7 @@
 import torch
 import h5py
 from argparse import ArgumentParser
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Subset
 import requests
 import re
 import os
@@ -53,12 +53,10 @@ def collate_point_cloud(batch, max_particles=33):
         pad_shape = (target_len - tensor.shape[0],) + tuple(tensor.shape[1:])
         padding = tensor.new_zeros(pad_shape)
         return torch.cat([tensor, padding], dim=0)
-
     batch_X = [_pad_or_truncate(item["X"], max_particles) for item in batch]
     batch_y = [item["y"] for item in batch]
     batch_attention_mask = [_pad_or_truncate(item["attention_mask"], max_particles) for item in batch]
     #batch_additional_info = [_pad_or_truncate(item["data_additional_info"], max_particles) for item in batch]
-
     point_clouds = torch.stack(batch_X)  # (B, M, F)
     labels = torch.stack(batch_y)  # (B, num_classes)
     attention_masks = torch.stack(batch_attention_mask)  # (B, M)
@@ -233,6 +231,7 @@ class HEPTorchDataset(Dataset):
         sample["attention_mask"] = valid_attention_mask.float()
         return sample
 
+
 def load_data(
     dataset_name,
     path,
@@ -252,7 +251,8 @@ def load_data(
     nevts=-1,
     max_particles=33,
     task: Task = Task(),
-    concat_additional_info=True
+    concat_additional_info=True,
+    event_sampler_random_state=42
 ):
     supported_datasets = ["minerva_1A", "minerva_1B", "minerva_1C", "minerva_1D", "minerva_1E", "minerva_1F",
     "minerva_1G", "minerva_1L", "minerva_1M", "minerva_1N", "minerva_1O", "minerva_1P"]
@@ -270,11 +270,16 @@ def load_data(
             pid_idx=pid_idx,
             use_add=use_add,
             num_add=num_add,
-            nevts=nevts,
             max_particles=max_particles,
             task=task,
-            concat_additional_info=concat_additional_info
+            concat_additional_info=concat_additional_info,
+            nevts=-1 # Here, keep the whole dataset, only later we will sample a subset of the data
         )
+        if nevts > 0 and nevts < len(data):
+            print(f"Using a subset of the data: {nevts} events out of {len(data)}")
+            rng = np.random.RandomState(event_sampler_random_state)
+            indices = rng.choice(len(data), size=nevts, replace=False)
+            data = Subset(data, indices)
         loader = DataLoader(
             data,
             batch_size=batch,

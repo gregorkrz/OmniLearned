@@ -145,6 +145,7 @@ def train(
     ),
     wd: float = typer.Option(0.0, help="Weight decay"),
     nevts: int = typer.Option(-1, help="Maximum number of events to use"),
+    event_sampler_random_state: int = typer.Option(42, help="Random state for event sampler"),
     # Model
     attn_drop: float = typer.Option(0.0, help="Dropout for attention layers"),
     mlp_drop: float = typer.Option(0.0, help="Dropout for mlp layers"),
@@ -222,6 +223,7 @@ def train(
         max_particles=max_particles,
         task=task,
         weight_loss=weight_loss,
+        event_sampler_random_state=event_sampler_random_state,
     )
 
 

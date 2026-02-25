@@ -443,6 +443,7 @@ def run(
     lr_factor: float = 10.0,
     wd: float = 0.3,
     nevts: int = -1,
+    event_sampler_random_state: int = 42,
     attn_drop: float = 0.1,
     mlp_drop: float = 0.1,
     feature_drop: float = 0.0,
@@ -570,7 +571,9 @@ def run(
         nevts=nevts,
         max_particles=max_particles,
         task=task,
-        concat_additional_info=False
+        concat_additional_info=False,
+        event_sampler_random_state=event_sampler_random_state,
+
     )
     if rank == 0:
         print("**** Setup ****")
