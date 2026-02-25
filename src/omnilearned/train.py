@@ -29,6 +29,8 @@ import torch.amp as amp
 
 torch.set_float32_matmul_precision("high")
 torch._dynamo.config.verbose = False
+if hasattr(torch.backends.cuda, "preferred_blas_library"):
+    torch.backends.cuda.preferred_blas_library("cublaslt")
 
 
 def get_logs(device):
@@ -59,6 +61,7 @@ def train_step(
     gscaler=None,
     ema_model=None,
     ema_decay=0.9999,
+    current_step=0
 ):
     model.train()
 
@@ -111,6 +114,7 @@ def train_step(
                 clip_loss,
                 logs,
                 data_pid=data_pid,
+                step=current_step,
             )
 
         if use_amp and gscaler is not None:
@@ -270,6 +274,7 @@ def train_model(
         gscaler = amp.GradScaler()
     else:
         gscaler = None
+    current_step = 0
     train_steps_per_epoch = (
         len(train_loader) if iterations_per_epoch < 0 else iterations_per_epoch
     )
@@ -307,7 +312,9 @@ def train_model(
                 gscaler=gscaler,
                 ema_model=ema_model,
                 ema_decay=ema_decay,
+                current_step=current_step
             )
+            current_step += steps_this_chunk
             epoch_steps_done += steps_this_chunk
             global_step += steps_this_chunk
 
@@ -444,7 +451,8 @@ def run(
     regression_loss: str = "mse",
     regress_log: bool = True,
     max_particles: int = 150,
-    task: Task = None
+    task: Task = None,
+    weight_loss: bool = False,
 ):
     # Save all these settings into a json file in the output directory
     # - this is a bit bulky, but it's easy to add new settings later.
@@ -498,6 +506,7 @@ def run(
         "regression_loss": regression_loss,
         "regress_log": regress_log,
         "max_particles": max_particles,
+        "weight_loss": weight_loss,
         "task": task.__dict__
     }
     json.dump(settings, open(os.path.join(outdir, "settings.json"), "w"))
@@ -695,13 +704,12 @@ def run(
         run = None
 
     if mode == "regression":
-        # Use custom RegressionLoss that handles loss type and log transformation
-        # Note: apply_log=False because dataloader already applies log transformation when regress_log=True
         loss_class = RegressionLoss(
             loss_type=regression_loss,
-            apply_log=True,  # Log transformation is always applied
+            apply_log=task.regress_log,
             log_epsilon=1e-6,
-            reduction="none"
+            reduction="none",
+            weighted=weight_loss,
         )
     else:
         weights = torch.tensor(train_class_weights).float()

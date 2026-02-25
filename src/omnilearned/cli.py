@@ -8,6 +8,23 @@ from omnilearned.dataloader import load_data, Task
 from omnilearned.train_hl import run as run_training_hl
 from omnilearned.evaluate_hl import run as run_evaluation_hl
 
+"""
+# Eval 29 February 2026
+
+export CKPT_DIR=/global/cfs/cdirs/m3246/gregork/checkpoints
+omnilearned evaluate -i $CKPT_DIR/current_type_1A_20260217_175547
+omnilearned evaluate -i $CKPT_DIR/current_type_1A_20260218_015241
+omnilearned evaluate -i $CKPT_DIR/pions_1A_20260218_014607
+omnilearned evaluate -i $CKPT_DIR/pions_1A_20260218_014329
+omnilearned evaluate -i $CKPT_DIR/E_avail_no_muon_1A_20260218_064743 --num-workers 2 --batch 100
+omnilearned evaluate -i $CKPT_DIR/E_avail_1A_20260218_064634 --num-workers 2 --batch 100
+omnilearned evaluate -i $CKPT_DIR/E_avail_1A_20260218_064356 --num-workers 2 --batch 100
+omnilearned evaluate -i $CKPT_DIR/E_avail_no_muon_1A_20260218_064440 --num-workers 2 --batch 100
+
+omnilearned evaluate -i $CKPT_DIR/E_avail_no_muon_Linear_Huber2_1A_20260223_193110 --num-workers 2 --batch 100
+omnilearned evaluate -i $CKPT_DIR/E_avail_no_muon_Linear_Huber2_1A_20260223_193233 --num-workers 2 --batch 100
+
+"""
 
 app = typer.Typer(
     help="OmniLearned: A unified deep learning approach for particle physics",
@@ -24,7 +41,8 @@ def create_task(args):
             class_label_idx = 8
         elif args.regress_E_available_no_muon:
             class_label_idx = 9
-        return Task(type="regression", regress_E_available=args.regress_E_available, regress_E_available_no_muon=args.regress_E_available_no_muon, class_label_idx=class_label_idx)
+        return Task(type="regression", regress_E_available=args.regress_E_available, regress_E_available_no_muon=args.regress_E_available_no_muon,
+                class_label_idx=class_label_idx, regress_log=args.regress_log)
     elif args.mode == "classifier":
         if "classification_n_pions" not in args.__dict__:
             args.classification_n_pions = False
@@ -137,10 +155,12 @@ def train(
     class_pions: bool = typer.Option(False, help="Classify single pion"),
     regress_E_available: bool = typer.Option(False, help="Regress energy available"),
     regress_E_available_no_muon: bool = typer.Option(False, help="Regress energy available without muon"),
+    regress_log: bool = typer.Option(False, help="Log transformation for regression"),
+    weight_loss: bool = typer.Option(False, help="Weight loss for regression using 1/E weights"),
 ):
     args = SimpleNamespace(
         mode=mode,
-        regress_log=True,
+        regress_log=regress_log,
         regress_E_available=regress_E_available,
         regress_E_available_no_muon=regress_E_available_no_muon,
         classification_event_type=False,
@@ -199,9 +219,9 @@ def train(
         num_workers,
         clip_inputs=clip_inputs,
         regression_loss=regression_loss,
-        regress_log=True,
         max_particles=max_particles,
-        task=task
+        task=task,
+        weight_loss=weight_loss,
     )
 
 
@@ -212,6 +232,14 @@ def evaluate(
     ),
     outdir: str = typer.Option(
         "", "--output_dir", "-o", help="Directory to output evaluation results"
+    ),
+    batch: int = typer.Option(
+        None, "--batch", help="Override evaluation batch size from settings"
+    ),
+    num_workers: int = typer.Option(
+        None,
+        "--num-workers",
+        help="Override number of dataloader workers from settings",
     ),
 ):
     if not outdir:
@@ -248,8 +276,8 @@ def evaluate(
         num_classes,
         settings.get("num_gen_classes", 1),
         settings["mode"],
-        settings["batch"],
-        settings["num_workers"],
+        batch if batch is not None else settings["batch"],
+        num_workers if num_workers is not None else settings["num_workers"],
         clip_inputs=settings.get("clip_inputs", False),
         max_particles=settings.get("max_particles", 150),
         task=task,

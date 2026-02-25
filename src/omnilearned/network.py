@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 
@@ -249,7 +250,37 @@ class PET_classifier(nn.Module):
             x = blk(x, mask=mask)
 
         x = self.fc(x[:, : self.num_tokens].reshape(B, -1))
-        return self.out(x)
+        debug_linear = os.environ.get("OMNILEARNED_DEBUG_LINEAR", "0") == "1"
+        if debug_linear:
+            print(
+                "[PET_classifier.out] "
+                f"x.shape={tuple(x.shape)}, x.dtype={x.dtype}, x.device={x.device}, "
+                f"w.shape={tuple(self.out.weight.shape)}, w.dtype={self.out.weight.dtype}, "
+                f"w.device={self.out.weight.device}, b.shape={None if self.out.bias is None else tuple(self.out.bias.shape)}"
+            )
+            print(
+                "[PET_classifier.out] "
+                f"x_has_nan={torch.isnan(x).any().item()}, x_has_inf={torch.isinf(x).any().item()}, "
+                f"w_has_nan={torch.isnan(self.out.weight).any().item()}, "
+                f"w_has_inf={torch.isinf(self.out.weight).any().item()}"
+            )
+
+        try:
+            return self.out(x)
+        except Exception as e:
+            print(
+                "[PET_classifier.out][EXCEPTION] "
+                f"x.shape={tuple(x.shape)}, x.dtype={x.dtype}, x.device={x.device}, "
+                f"w.shape={tuple(self.out.weight.shape)}, w.dtype={self.out.weight.dtype}, "
+                f"w.device={self.out.weight.device}, b.shape={None if self.out.bias is None else tuple(self.out.bias.shape)}"
+            )
+            print(
+                "[PET_classifier.out][EXCEPTION] "
+                f"x_min={x.detach().min().item() if x.numel() > 0 else 'NA'}, "
+                f"x_max={x.detach().max().item() if x.numel() > 0 else 'NA'}, "
+                f"x_has_nan={torch.isnan(x).any().item()}, x_has_inf={torch.isinf(x).any().item()}"
+            )
+            raise e
 
 
 class PET_generator(nn.Module):

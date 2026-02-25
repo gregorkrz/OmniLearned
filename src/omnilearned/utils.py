@@ -155,34 +155,42 @@ class RegressionLoss(nn.Module):
         loss_type='mse', 
         apply_log=False, 
         log_epsilon=1e-6, 
-        reduction='none'
+        reduction='none',
+        weighted=False,
+        max_weight=10.0,
+        min_weight=0.1,
     ):
         super().__init__()
         self.loss_type = loss_type.lower()
         self.apply_log = False
         self.log_epsilon = log_epsilon
         self.reduction = reduction
-        
+        self.weighted = weighted
+        self.max_weight = max_weight
+        self.min_weight = min_weight
         # Initialize the base loss function
         if self.loss_type == 'mse':
             self.loss_fn = nn.MSELoss(reduction=reduction)
+            self.loss_fn_no_reduce = nn.MSELoss(reduction="none")
         elif self.loss_type == 'l1':
             self.loss_fn = nn.L1Loss(reduction=reduction)
+            self.loss_fn_no_reduce = nn.L1Loss(reduction="none")
         elif self.loss_type == 'huber':
             self.loss_fn = nn.HuberLoss(reduction=reduction)
+            self.loss_fn_no_reduce = nn.HuberLoss(reduction="none")
         else:
             raise ValueError(
                 f"Loss type '{loss_type}' not supported. Choose from 'mse', 'l1', or 'huber'."
             )
     
-    def forward(self, predictions, targets):
+    def forward(self, predictions, targets, step=0):
         """
         Compute the regression loss.
         
         Args:
             predictions: Model predictions (torch.Tensor)
             targets: Ground truth targets (torch.Tensor)
-        
+            step: Current step
         Returns:
             Loss value (torch.Tensor)
         """
@@ -191,8 +199,7 @@ class RegressionLoss(nn.Module):
             # Transform both predictions and targets to log space
             # Assumes both are in original (non-log) space
             targets_transformed = torch.log(targets + self.log_epsilon)
-            if torch.min(targets) < 0:
-                print("Min")
+        
             #predictions_transformed = torch.log(predictions + self.log_epsilon)
             predictions_transformed = predictions
         else:
@@ -201,16 +208,24 @@ class RegressionLoss(nn.Module):
             targets_transformed = targets
             predictions_transformed = predictions
         
-        # Compute loss
-        loss = self.loss_fn(predictions_transformed, targets_transformed)
-        # check if there are nans in pred or targets
         if torch.isnan(predictions_transformed).any() or torch.isnan(targets_transformed).any():
             print("error in predictions_transformed or targets_transformed")
             print("number of nans in predictions_transformed", torch.isnan(predictions_transformed).sum())
             print("number of nans in targets_transformed", torch.isnan(targets_transformed).sum())
             raise Exception("Error: nans in predictions_transformed or targets_transformed")
-    
-        return loss
+
+        if self.weighted:
+            per_sample_loss = self.loss_fn_no_reduce(predictions_transformed, targets_transformed)
+            safe_targets = torch.where(targets > 0, targets, torch.ones_like(targets))
+            weights = torch.where(
+                targets > 0,
+                1.0 / safe_targets,
+                torch.full_like(targets, self.max_weight),
+            )
+            weights = torch.clamp(weights, max=self.max_weight, min=self.min_weight)
+            return per_sample_loss * weights
+
+        return self.loss_fn(predictions_transformed, targets_transformed)
 
 
 def sum_reduce(num, device):
@@ -299,6 +314,7 @@ def get_loss(
     clip_loss,
     logs,
     data_pid=None,
+    step=0
 ):
     loss = 0.0
     if outputs["y_pred"] is not None:
@@ -307,7 +323,7 @@ def get_loss(
             y_pred = outputs["y_pred"]
             if y_pred.ndim == 2 and y_pred.shape[1] == 1:
                 y_pred = y_pred.squeeze(1)
-            loss_class = torch.mean(class_cost(y_pred, y))
+            loss_class = torch.mean(class_cost(y_pred, y, step))
             logs["loss_class"] += loss_class.detach()
         else:
             # class_cost already carries global class weights; keep per-sample
