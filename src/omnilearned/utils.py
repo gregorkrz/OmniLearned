@@ -296,7 +296,7 @@ def get_class_loss(weight, pred, y, class_cost, use_event_loss=False, logs={}):
             logs["loss_class"] += loss_class.detach()
             loss = loss + loss_class
     else:
-        loss_class = torch.mean(weight * class_cost(pred, y))
+        loss_class = class_cost(pred, y)
         loss = loss + loss_class
         logs["loss_class"] += loss_class.detach()
 
@@ -333,7 +333,6 @@ def get_loss(
             loss_class = get_class_loss(
                 weights, outputs["y_pred"], y, class_cost, use_event_loss, logs
             )
-
         loss = loss + loss_class
 
     if outputs["z_pred"] is not None:

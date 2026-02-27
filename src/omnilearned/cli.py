@@ -24,6 +24,9 @@ omnilearned evaluate -i $CKPT_DIR/E_avail_no_muon_1A_20260218_064440 --num-worke
 omnilearned evaluate -i $CKPT_DIR/E_avail_no_muon_Linear_Huber2_1A_20260223_193110 --num-workers 2 --batch 100
 omnilearned evaluate -i $CKPT_DIR/E_avail_no_muon_Linear_Huber2_1A_20260223_193233 --num-workers 2 --batch 100
 
+
+omnilearned evaluate -i $CKPT_DIR/Train_CC1orNPi_Fix250226_PTCont_1A_20260226_033635 --num-workers 2 --batch 1024
+omnilearned evaluate -i $CKPT_DIR/Train_CC1orNPi_Fix250226Cont_1A_20260226_033607 --num-workers 2 --batch 1024
 """
 
 app = typer.Typer(
@@ -64,8 +67,8 @@ def create_task(args):
             class_idx_map = {0: 0, 1: 1}
         elif args.classification_CC1orNPi:
             class_label_idx = -1
-            class_idx = [0, 1, 2, 3]
-            class_idx_map = {0: 0, 1: 1, 2: 2, 3: 3}
+            class_idx = [0, 1, 2, 3, 4]
+            class_idx_map = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
         return Task(type="classifier", classification_event_type=args.classification_event_type, 
             classification_current=args.classification_current, classification_cc_1pi=args.classification_cc_1pi,
             classification_n_pions=args.classification_n_pions, class_idx=class_idx, class_idx_map=class_idx_map, class_label_idx=class_label_idx,

@@ -63,7 +63,6 @@ def collate_point_cloud(batch, max_particles=33):
     attention_masks = torch.stack(batch_attention_mask)  # (B, M)
     #additional_info = torch.stack(batch_additional_info) # (B, M, 5)
     result = {"X": point_clouds, "y": labels, "attention_mask": attention_masks}#, "data_additional_info": additional_info}
-
     # Handle optional fields in a loop to reduce code duplication
     optional_fields = ["cond", "pid", "add_info", "data_pid", "vertex_pid"]
     for field in optional_fields:
@@ -103,8 +102,9 @@ def get_CC1orNPi_labels(file_truth_labels):
     labels[is_cc & one_pi_plus & ~one_pi_minus] = 0 # CC 1pi+
     labels[is_cc & one_pi_minus & ~one_pi_plus] = 1 # CC 1pi-
     labels[is_cc & multi_pions] = 2 # CC N Pi +-
-    labels[~is_cc] = 3 # OTHER
-    return labels
+    labels[~is_cc] = 3 # Not CC
+    labels[is_cc & ((n_pi_plus + n_pi_minus) == 0)] = 4 # CC other
+    return labels # labels: 0=CC 1pi+, 1=CC 1pi-, 2=CC N charged pions-, 3=OTHER
 
 class HEPTorchDataset(Dataset):
     def __init__(
@@ -256,7 +256,7 @@ def load_data(
     event_sampler_random_state=42
 ):
     supported_datasets = ["minerva_1A", "minerva_1B", "minerva_1C", "minerva_1D", "minerva_1E", "minerva_1F",
-    "minerva_1G", "minerva_1L", "minerva_1M", "minerva_1N", "minerva_1O", "minerva_1P"]
+                          "minerva_1G", "minerva_1L", "minerva_1M", "minerva_1N", "minerva_1O", "minerva_1P"]
     if dataset_name not in supported_datasets:
         raise ValueError(
             f"Dataset '{dataset_name}' not supported. Choose from {supported_datasets}."

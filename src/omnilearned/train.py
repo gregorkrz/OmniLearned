@@ -217,7 +217,7 @@ def val_step(
                 logs,
                 data_pid=data_pid,
             )
-        
+
         # Progress logging for validation
         if is_master_node() and (batch_idx + 1) % log_interval == 0:
             elapsed_time = time.time() - log_start_time
@@ -730,9 +730,9 @@ def run(
             print("NOT regressing log")
     else:
         weights = torch.tensor(train_class_weights).float()
-        weights= weights.to(device)
-        loss_class = nn.CrossEntropyLoss(reduction="none", weight=weights)
-
+        weights = weights.to(device)
+        loss_class = nn.CrossEntropyLoss(weight=weights)
+        print("Class weights: ", weights)
     if mode == "ftag":
         loss_gen = nn.CrossEntropyLoss(reduction="none")
     else:
