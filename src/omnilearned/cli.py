@@ -105,8 +105,8 @@ def train(
     ),
     K: int = typer.Option(10, help="Number of k-neighbors"),
     interaction_type: str = typer.Option("lhc", help="Type of interaction"),
-    conditional: bool = typer.Option(False, help="Use global conditional features"),
-    num_cond: int = typer.Option(3, help="Number of global conditioning features"),
+    conditional: bool = typer.Option(True, help="Use global  features"),
+    num_cond: int = typer.Option(4, help="Number of global conditioning features"),
     use_pid: bool = typer.Option(False, help="Use particle ID for training"),
     pid_idx: int = typer.Option(4, help="Index of the PID in the input array"),
     pid_dim: int = typer.Option(8, help="Number of unique PIDs"),
@@ -114,6 +114,7 @@ def train(
         True, help="Use additional features beyond kinematic information"
     ),
     num_add: int = typer.Option(5, help="Number of additional features"),
+    use_energy_sums: bool = typer.Option(False, help="Use energy sums for training"),
     zero_add: bool = typer.Option(
         False,
         help="Load the model with additional blocks but zero the inputs from the dataloader",
@@ -126,7 +127,7 @@ def train(
         "classifier", help="Task to run: classifier, generator, pretrain"
     ),
     regression_loss: str = typer.Option(
-        "mse", help="Regression loss type: mse (L2), l1 (MAE), or huber"
+        "mse", help="Regression loss type: mse (L2), l1 (MAE), or huber, log1p"
     ),
     # Training options
     batch: int = typer.Option(64, help="Batch size"),
@@ -138,15 +139,15 @@ def train(
         False, help="Clip input dataset to be within R=0.8 and atl least 500 MeV"
     ),
     # Optimizer
-    optim: str = typer.Option("lion", help="optimizer to use"),
+    optim: str = typer.Option("adam", help="optimizer to use"),
     sched: str = typer.Option("cosine", help="lr scheduler to use"),
     b1: float = typer.Option(0.95, help="Lion b1"),
     b2: float = typer.Option(0.98, help="Lion b2"),
-    lr: float = typer.Option(5e-5, help="Learning rate"),
+    lr: float = typer.Option(1e-4, help="Learning rate"),
     lr_factor: float = typer.Option(
         1.0, help="Learning rate factor for new layers during fine-tuning"
     ),
-    wd: float = typer.Option(0.0, help="Weight decay"),
+    wd: float = typer.Option(0.01, help="Weight decay"),
     nevts: int = typer.Option(-1, help="Maximum number of events to use"),
     event_sampler_random_state: int = typer.Option(42, help="Random state for event sampler"),
     # Model
@@ -227,6 +228,7 @@ def train(
         max_particles=max_particles,
         task=task,
         weight_loss=weight_loss,
+        use_energy_sums=use_energy_sums,
     )
 
 
@@ -286,6 +288,7 @@ def evaluate(
         clip_inputs=settings.get("clip_inputs", False),
         max_particles=settings.get("max_particles", 150),
         task=task,
+        regression_loss=settings.get("regression_loss", "mse"),
     )
 
 

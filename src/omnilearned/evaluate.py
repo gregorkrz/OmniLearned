@@ -30,6 +30,7 @@ def eval_model(
     outdir="",
     save_tag="pretrain",
     rank=0,
+    regression_loss="mse",
 ):
     # Ensure output directory exists
     if outdir and rank == 0:
@@ -51,6 +52,9 @@ def eval_model(
                 prediction = prediction.softmax(-1).cpu().numpy()
             else:
                 prediction = prediction.cpu().numpy()
+                if regression_loss == "log1p":
+                    prediction = np.expm1(prediction)
+                    prediction = np.maximum(prediction, 0)
 
             np.savez(
                 os.path.join(outdir, f"outputs_{save_tag}_{dataset}_{rank}.npz"),
@@ -160,6 +164,7 @@ def run(
     clip_inputs: bool = False,
     max_particles: int = 150,
     task: Task = None,
+    regression_loss: str = "mse",
 ):
     local_rank, rank, size = ddp_setup()
 
@@ -274,6 +279,7 @@ def run(
         rank=rank,
         outdir=outdir,
         save_tag=save_tag,
+        regression_loss=regression_loss,
     )
     dist.barrier()
     dist.destroy_process_group()

@@ -409,6 +409,14 @@ def make_log_loss(criterion):
     return loss
 
 
+def make_log1p_loss(criterion):
+    # Transform target to log1p(target+1)
+    def loss(pred, target, step=0):
+        target = torch.log1p(target)
+        return criterion(pred, target).mean()
+    return loss
+
+
 
 def run(
     outdir: str = "",
@@ -716,18 +724,22 @@ def run(
         run = None
 
     if mode == "regression":
-        loss_class = RegressionLoss(
-            loss_type=regression_loss,
-            apply_log=False,
-            log_epsilon=1e-6,
-            reduction="none",
-            weighted=weight_loss,
-        )
-        if task.regress_log:
-            print("Regressing log!")
-            loss_class = make_log_loss(loss_class)
+        if regression_loss == "log1p":
+            print("Using log1p loss")
+            loss_class = make_log1p_loss(nn.HuberLoss(reduction="none"))
         else:
-            print("NOT regressing log")
+            loss_class = RegressionLoss(
+                loss_type=regression_loss,
+                apply_log=False,
+                log_epsilon=1e-6,
+                reduction="none",
+                weighted=weight_loss,
+            )
+            if task.regress_log:
+                print("Regressing log!")
+                loss_class = make_log_loss(loss_class)
+            else:
+                print("NOT regressing log")
     else:
         weights = torch.tensor(train_class_weights).float()
         weights = weights.to(device)

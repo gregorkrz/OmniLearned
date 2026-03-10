@@ -323,13 +323,12 @@ def get_loss(
             y_pred = outputs["y_pred"]
             if y_pred.ndim == 2 and y_pred.shape[1] == 1:
                 y_pred = y_pred.squeeze(1)
-            loss_class = torch.mean(class_cost(y_pred, y, step))
+            loss_class = class_cost(y_pred, y, step)
             logs["loss_class"] += loss_class.detach()
         else:
             # class_cost already carries global class weights; keep per-sample
             # weighting neutral to avoid double reweighting.
             weights = torch.ones_like(y, dtype=outputs["y_pred"].dtype)
-
             loss_class = get_class_loss(
                 weights, outputs["y_pred"], y, class_cost, use_event_loss, logs
             )

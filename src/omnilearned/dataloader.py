@@ -106,6 +106,24 @@ def get_CC1orNPi_labels(file_truth_labels):
     labels[is_cc & ((n_pi_plus + n_pi_minus) == 0)] = 4 # CC other
     return labels # labels: 0=CC 1pi+, 1=CC 1pi-, 2=CC N charged pions-, 3=OTHER
 
+def get_Pi_labels_v2(file_truth_labels):
+    # label0 = CC, 1 charged pion, the rest whatever
+    # label1 = CC, N >1charged pion, the rest whatever
+    # label2 = CC, 1 pi0, no charged pions
+    # label3 = CC, all others
+    # label4 = NC
+    is_cc = file_truth_labels[:, 3] == 1
+    n_pi_plus = file_truth_labels[:, 5]
+    n_pi_minus = file_truth_labels[:, 6]
+    n_pi_zero = file_truth_labels[:, 10]
+    labels = torch.ones(len(file_truth_labels), dtype=torch.long)*4 # 4 is the label for other
+    labels[is_cc & (n_pi_plus == 1) & (n_pi_minus == 0)] = 0
+    labels[is_cc & ((n_pi_plus + n_pi_minus) > 1)] = 1
+    labels[is_cc & ((n_pi_plus + n_pi_minus) == 0)] = 3
+    labels[is_cc & (n_pi_zero == 1) & (n_pi_plus == 0) & (n_pi_minus == 0)] = 2
+    return labels
+
+
 class HEPTorchDataset(Dataset):
     def __init__(
         self,
@@ -120,6 +138,7 @@ class HEPTorchDataset(Dataset):
         task: Task = Task(),
         concat_additional_info=True,
         remove_pid_idx=True
+        use_energy_sums=False
     ):
         """
         Args:
@@ -136,6 +155,7 @@ class HEPTorchDataset(Dataset):
         self.concat_additional_info = concat_additional_info
         self.folder = folder
         self.remove_pid_idx = remove_pid_idx
+        self.use_energy_sums = use_energy_sums
         self.file_paths = sorted(list([os.path.join(folder, file) for file in os.listdir(folder) if file.endswith('.pb')]))
         print("Loading files into memory")
         self.files = [torch.load(file, weights_only=True, mmap=False) for file in self.file_paths]
@@ -150,7 +170,7 @@ class HEPTorchDataset(Dataset):
         self.files_truth_labels = [file["truth_labels"] for file in self.files]
         # add a column with CC1orNPi labels
         if task.classification_CC1orNPi:
-            self.files_truth_labels = [np.concatenate([file_truth_labels, get_CC1orNPi_labels(file_truth_labels).reshape(-1, 1)], axis=1) for file_truth_labels in self.files_truth_labels]
+            self.files_truth_labels = [np.concatenate([file_truth_labels, get_Pi_labels_v2(file_truth_labels).reshape(-1, 1)], axis=1) for file_truth_labels in self.files_truth_labels]
         self.files_global_features = [file["global_features"] for file in self.files]
         self.nevts = int(nevts)
         self.max_particles = max_particles
@@ -169,6 +189,8 @@ class HEPTorchDataset(Dataset):
         elif self.task.type == "regression":
             self.regress_log = self.task.regress_log
             print("Regressing log!")
+        if self.use_energy_sums:
+            print("Using energy sums!")
         else:
             raise ValueError("Invalid task type")
 
@@ -230,6 +252,15 @@ class HEPTorchDataset(Dataset):
             sample["X"] = data.float()
             sample["add_info"] = data_additional_info.float()
         sample["attention_mask"] = valid_attention_mask.float()
+        if self.use_energy_sums:
+            pid = data[:, self.pid_idx]
+            E = torch.exp(data[:, 3])  # index 3 is log(E + 1e-6)
+            # PID 2=blob, 3=prong(3), 4=prong(8), 5=prong(13), 6=agg_blob, 7=agg_prong
+            energy_sums = torch.zeros(6, dtype=torch.float32)
+            for i, pid_val in enumerate([2, 3, 4, 5, 6, 7]):
+                mask = pid == pid_val
+                energy_sums[i] = E[mask].sum()
+            sample["energy_sums"] = energy_sums
         return sample
 
 
